@@ -1,0 +1,711 @@
+#+auto_tangle: t
+* quickcheck.el
+#+BEGIN: clocktable :scope subtree 
+#+CAPTION: Clock summary at [2025-06-23 Mon 00:40]
+| Headline                    | Time    |      |
+|-----------------------------+---------+------|
+| *Total time*                | *19:25* |      |
+|-----------------------------+---------+------|
+| quickcheck.el               | 19:25   |      |
+| \_  Testing Utilities       |         | 0:10 |
+| \_  generics for quickcheck |         | 3:06 |
+| \_  random.hs               |         | 7:54 |
+| \_  gen.hs                  |         | 4:42 |
+| \_  Cancelled               |         | 3:33 |
+#+END:
+
+** TODO Move to a seperate folder and version control
+** imports
+#+begin_src elisp :tangle yes
+  ;;; quickcheck.el --- Quickcheck clone       -**- lexical-binding: t -**-
+
+    (require 'eieio)
+    (require 'cl-lib)
+    (require 'calc-comb)
+    (require 'range)
+
+#+END_SRC
+** constants
+#+begin_src elisp :tangle yes
+  (defconst DEFAULTRANDOMNUMBERRANGE
+    (list 1 255)    
+    "default random number range")
+  (defconst THOUSAND
+    (float 1000)
+    "Float creator")
+  (defconst SIZE
+    30
+    "Size for generators")
+
+#+end_src
+
+#+RESULTS:
+: 0.1
+
+*** DONE range-member-exclusive-p
+CLOSED: [2025-07-03 Thu 06:54]
+:LOGBOOK:
+CLOCK: [2025-07-03 Thu 06:52]--[2025-07-03 Thu 06:54] =>  0:02
+CLOCK: [2025-07-03 Thu 06:44]--[2025-07-03 Thu 06:44] =>  0:00
+CLOCK: [2025-07-03 Thu 06:05]--[2025-07-03 Thu 06:19] =>  0:14
+CLOCK: [2025-07-03 Thu 05:32]--[2025-07-03 Thu 06:02] =>  0:30
+CLOCK: [2025-07-03 Thu 04:55]--[2025-07-03 Thu 05:23] =>  0:28
+:END:
+#+begin_src elisp :tangle yes
+  (cl-defun range-member-exclusive-p ((range-min range-max) number)
+    (and (greater-than-or-equal number range-min) (less-than number range-max)))
+#+end_src
+
+#+RESULTS:
+: t
+
+**** DONE range-member-exclusive-p aliases
+CLOSED: [2025-07-03 Thu 06:54]
+#+begin_src elisp :tangle yes
+  (defalias 'between-one-and-255 (apply-partially #'range-member-exclusive-p (list 1 255)))
+  (defalias 'between-zero-and-one (apply-partially #'range-member-exclusive-p (list 0 1)))
+
+#+end_src
+
+#+RESULTS:
+
+
+** Aliases
+#+begin_src elisp :tangle yes
+  (defalias '2+ (apply-partially #'+ 2))
+#+end_src
+*** TODO Comparison functions aliases
+:LOGBOOK:
+CLOCK: [2025-07-04 Fri 04:18]--[2025-07-04 Fri 04:20] =>  0:02
+:END:
+#+begin_src elisp :tangle yes
+
+  (defalias 'not-equal #'/=)
+  (defalias 'less-than #'<)
+  (defalias 'less-than-or-equal #'<=)
+  (defalias 'greater-than #'>)
+  (defalias 'greater-than-or-equal #'>=)
+  (defalias 'greater-than-or-equal-one (-rpartial #'>= 1))
+  (defalias 'equal-zero (apply-partially #'eql 0))
+  (defalias 'equal-one (apply-partially #'eql 0))
+
+#+end_src
+
+#+RESULTS:
+
+*** TODO seq aliases
+:LOGBOOK:
+CLOCK: [2025-07-04 Fri 04:20]--[2025-07-04 Fri 04:20] =>  0:00
+CLOCK: [2025-07-04 Fri 04:18]--[2025-07-04 Fri 04:18] =>  0:00
+CLOCK: [2025-07-04 Fri 04:18]--[2025-07-04 Fri 04:18] =>  0:00
+CLOCK: [2025-07-01 Tue 05:09]--[2025-07-01 Tue 05:13] =>  0:04
+:END:
+#+begin_src elisp :tangle yes
+  (defalias 'seq-count-integers (apply-partially #'seq-count #'integerp))
+  (defalias 'seq-count-floats (apply-partially #'seq-count #'floatp))
+  (defalias 'seq-count-strings (apply-partially #'seq-count #'stringp))  
+  (defalias 'seq-count-cons (apply-partially #'seq-count #'consp))
+
+  (defalias 'seq-count-between-zero-and-one (apply-partially #'seq-count #'between-zero-and-one))
+  (defalias 'seq-count-greater-than-or-equal-one (apply-partially #'seq-count #'greater-than-or-equal-one))
+
+  (defalias 'seq-map-add-one (apply-partially #'seq-map #'1+))
+  (defalias 'seq-map-length (apply-partially #'seq-map #'seq-length))
+
+#+end_src
+*** random aliases
+#+begin_src elisp :tangle yes
+  (defalias 'calcFunc-random-255 (apply-partially #'calcFunc-random 255))
+#+end_src
+
+*** Dash aliases
+:LOGBOOK:
+CLOCK: [2025-07-05 Sat 08:49]--[2025-07-05 Sat 09:16] =>  0:27
+CLOCK: [2025-07-05 Sat 08:40]--[2025-07-05 Sat 08:46] =>  0:06
+CLOCK: [2025-07-05 Sat 08:34]--[2025-07-05 Sat 08:35] =>  0:01
+CLOCK: [2025-07-04 Fri 06:08]--[2025-07-04 Fri 06:10] =>  0:02
+CLOCK: [2025-07-04 Fri 04:23]--[2025-07-04 Fri 04:33] =>  0:10
+CLOCK: [2025-07-04 Fri 03:14]--[2025-07-04 Fri 03:16] =>  0:02
+CLOCK: [2025-07-03 Thu 17:35]--[2025-07-03 Thu 17:49] =>  0:14
+:END:
+- from: generate-test-data/generate-test-list-of-floats
+#+begin_src elisp :tangle yes  
+    (defalias '-applify-rpartial (-applify #'-rpartial))
+  (defalias '-applify-partial (-applify #'-partial))
+  (defalias 'divide-by-THOUSAND   (-rpartial #'/ THOUSAND))
+    (defalias '-applify-subtract (-applify #'-))
+
+    (defalias '-iterate-plus-one  (apply-partially #'-iterate #'1+))
+    (defalias '-first-and-last-item  (-juxt #'-first-item #'-last-item))
+    (defalias '-applify-zip  (-applify #'-zip))
+    (defalias '-applify-cons  (-applify #'cons))
+    (defalias '-applify-mapcar  (-applify #'mapcar))
+
+  (defalias 'divide-array-values-by-max-array-value (-compose #'-applify-mapcar (-juxt (-compose #'-applify-rpartial (apply-partially #'list #'/) #'float #'1+ #'-max) #'identity)))
+
+
+#+end_src
+
+#+RESULTS:
+: 3
+
+** Utilities
+
+*** DONE times
+#+BEGIN_SRC emacs-lisp :tangle yes
+  (defun times (function n)
+    (cdr (-iterate function nil (1+ n))))
+
+#+END_SRC
+
+*** DONE times-no-args
+#+BEGIN_SRC emacs-lisp :tangle yes
+  (defun times-no-args (function n)
+    (cdr (-iterate (lambda (_) (funcall function)) nil (1+ n))))
+
+
+
+#+END_SRC
+
+
+*** DONE non-zero-bounded-modular-addition
+#+begin_src elisp :tangle yes
+  (cl-defun non-zero-bounded-modular-addition ((range-min range-max) increase current-number)
+    (when (greater-than-or-equal range-min range-max)
+      (user-error "range-min %d is not less than range-max %d" range-min range-max))
+    (let* ((range-size (- range-max range-min))
+  	 (adjusted-increase (mod increase range-size))
+  	 (current-number-index (max (- current-number range-min) 0))
+  	 (adjusted-current-number-index (mod current-number-index range-size))
+  	 (new-number-index (mod (+ adjusted-current-number-index adjusted-increase) range-size))
+  	 (new-number (+ range-min new-number-index)))
+    new-number))  
+#+end_src
+*** DONE range-size
+CLOSED: [2025-07-03 Thu 06:51]
+:LOGBOOK:
+CLOCK: [2025-07-03 Thu 06:48]--[2025-07-03 Thu 06:51] =>  0:03
+:END:
+#+begin_src elisp :tangle yes
+  (defalias 'range-size (-compose #'-applify-subtract #'reverse))
+#+end_src
+
+*** DONE scale-float-to-range
+#+begin_src elisp :tangle yes
+  (cl-defun scale-float-to-range ((min max) float-to-scale)
+    ;; Float must be between 0 and 1
+    (when (greater-than-or-equal min max)
+      (error "min must be less than max"))
+    (let* ((min-ceiled (ceiling min))
+  	 (max-floored (floor max))
+  	 (min-max (- max-floored min-ceiled))
+  	 (float-times-min-max (* float-to-scale min-max))
+  	 (plus-min-ceiled (+ float-times-min-max min-ceiled)))
+    (floor plus-min-ceiled)))
+
+#+END_SRC
+
+
+*** TODO calc-extensions
+- from: divide-array-values-by-random-array-value
+**** TODO
+#+begin_src elisp :tangle yes
+  (defalias 'cons-vec (apply-partially #'cons 'vec))
+#+end_src
+**** DONE convert-calc-value-into-lisp
+CLOSED: [2025-06-16 Mon 08:45]
+#+begin_src elisp :tangle yes
+  (defun convert-calc-value-into-lisp (calc-value)
+    (read (math-format-value calc-value)))
+#+end_src
+**** DONE shuffle
+CLOSED: [2025-07-01 Tue 01:56]
+:LOGBOOK:
+CLOCK: [2025-07-01 Tue 01:49]--[2025-07-01 Tue 01:56] =>  0:07
+CLOCK: [2025-06-30 Mon 23:54]--[2025-07-01 Tue 00:30] =>  0:36
+:END:
+#+begin_src elisp :tangle yes
+  (defun shuffle (list)
+    (let* ((list-length (seq-length list))
+  	 (vec (cons 'vec list))
+  	 (shuffled-vec (math-shuffle-list list-length list-length vec)))
+    (cdr shuffled-vec)))
+#+end_src
+
+
+
+
+** Testing 
+*** DONE ert-deftest-times-macro
+#+begin_src elisp :tangle yes
+  ;; test-runner
+  ;; needs a test
+  (defmacro ert-deftest-n-times (name runs body)
+    (declare (indent 2))
+    (let ((fun-sym (gensym "test")))
+      `(ert-deftest ,name ()
+         (let ((,fun-sym (lambda (x) (progn
+  				     ,body 1))))  			 
+  	(times ,fun-sym ,runs)))))
+
+#+end_src
+
+#+RESULTS:
+: ert-deftest-n-times
+
+
+
+*** DONE random-float-between-0-and-1
+CLOSED: [2025-06-22 Sun 16:23]
+#+begin_src elisp :tangle yes
+  (defun random-float-between-0-and-1 ()    
+    (funcall (-compose #'convert-calc-value-into-lisp #'math-random-float)))
+#+end_src
+
+
+*** DONE random-integer-in-range
+CLOSED: [2025-06-30 Mon 21:19]
+:LOGBOOK:
+CLOCK: [2025-06-30 Mon 21:11]--[2025-06-30 Mon 21:19] =>  0:08
+:END:
+#+begin_src elisp :tangle yes
+    (defun random-integer-in-range (range)
+      (funcall (-compose (apply-partially #'scale-float-to-range range)  #'random-float-between-0-and-1)))
+#+end_src
+*** DONE random-integer-in-range-255
+CLOSED: [2025-07-01 Tue 02:04]
+:LOGBOOK:
+CLOCK: [2025-07-01 Tue 02:01]--[2025-07-01 Tue 02:04] =>  0:03
+:END:
+#+begin_src elisp :tangle yes
+  (defalias 'random-integer-in-range-255 (apply-partially #'random-integer-in-range DEFAULTRANDOMNUMBERRANGE))
+  (defalias 'divide-array-values-by-random-array-value (apply-partially #'mapcar (-compose #'-applify-rpartial (apply-partially #'list #'/) #'random-integer-in-range-255)))
+  
+#+end_src
+
+*** DONE random-integer-list
+CLOSED: [2025-07-01 Tue 05:21]
+:LOGBOOK:
+CLOCK: [2025-07-01 Tue 05:13]--[2025-07-01 Tue 05:21] =>  0:08
+CLOCK: [2025-07-01 Tue 05:08]--[2025-07-01 Tue 05:09] =>  0:01
+CLOCK: [2025-07-01 Tue 02:04]--[2025-07-01 Tue 02:15] =>  0:11
+CLOCK: [2025-07-01 Tue 01:59]--[2025-07-01 Tue 02:01] =>  0:02
+:END:
+#+begin_src elisp :tangle yes
+  (defun random-integer-list (length)    
+    (funcall (-compose #'shuffle #'-iterate-plus-one) (math-random-three-digit-number) length))
+  
+  (defalias 'random-integer-list-in-range-255 (-compose #'random-integer-list #'random-integer-in-range-255))
+#+end_src
+*** DONE random-array-value
+CLOSED: [2025-07-05 Sat 08:34]
+:LOGBOOK:
+CLOCK: [2025-07-05 Sat 08:32]--[2025-07-05 Sat 08:34] =>  0:02
+CLOCK: [2025-07-05 Sat 06:46]--[2025-07-05 Sat 07:02] =>  0:16
+:END:
+#+begin_src elisp :tangle yes
+  (defalias 'random-array-value (-compose #'-first-item #'shuffle))
+#+end_src
+
+*** DONE random-integer-range
+CLOSED: [2025-07-03 Thu 06:51]
+:LOGBOOK:
+CLOCK: [2025-07-03 Thu 06:44]--[2025-07-03 Thu 06:48] =>  0:04
+CLOCK: [2025-06-30 Mon 21:02]--[2025-06-30 Mon 21:08] =>  0:06
+CLOCK: [2025-06-22 Sun 22:24]--[2025-06-22 Sun 22:34] =>  0:10
+:END:
+#+begin_src elisp :tangle yes
+  (defun random-integer-range (length)    
+    (funcall (-juxt #'identity (apply-partially #'+ length))
+  	   (math-random-three-digit-number)))  
+#+end_src
+
+
+
+
+*** TODO generate-test-data
+:LOGBOOK:
+CLOCK: [2025-07-02 Wed 06:28]--[2025-07-02 Wed 06:39] =>  0:11
+CLOCK: [2025-07-02 Wed 05:16]--[2025-07-02 Wed 05:42] =>  0:26
+CLOCK: [2025-07-02 Wed 04:04]--[2025-07-02 Wed 04:29] =>  0:25
+CLOCK: [2025-07-01 Tue 21:38]--[2025-07-01 Tue 22:04] =>  0:26
+CLOCK: [2025-07-01 Tue 05:21]--[2025-07-01 Tue 05:36] =>  0:15
+CLOCK: [2025-07-01 Tue 01:56]--[2025-07-01 Tue 01:59] =>  0:03
+CLOCK: [2025-06-30 Mon 21:21]--[2025-06-30 Mon 21:21] =>  0:00
+CLOCK: [2025-06-30 Mon 21:08]--[2025-06-30 Mon 21:11] =>  0:03
+:END:
+**** DONE base function
+CLOSED: [2025-07-02 Wed 06:39]
+#+begin_src elisp :tangle yes
+  (cl-defun generate-test-data (&optional &key item-transformer &key list-transformer
+  				     &key min-length &key max-length)
+    (let* ((min-items (or min-length 1))
+  	 (max-items (or max-length 255))
+  	 (item-func (or item-transformer #'identity))
+  	 (list-func (or list-transformer #'identity))
+  	 (range-length (random-integer-in-range (list min-items max-items)))
+  	 (list-items (random-integer-list range-length)))
+      (funcall (-on list-func (apply-partially #'mapcar item-func)) list-items)))
+#+end_src
+**** TODO aliases for generate-test-data
+:LOGBOOK:
+CLOCK: [2025-07-04 Fri 06:10]--[2025-07-04 Fri 06:17] =>  0:07
+CLOCK: [2025-07-04 Fri 03:30]--[2025-07-04 Fri 03:30] =>  0:00
+CLOCK: [2025-07-03 Thu 16:38]--[2025-07-03 Thu 17:15] =>  0:37
+CLOCK: [2025-07-03 Thu 07:07]--[2025-07-03 Thu 07:31] =>  0:24
+CLOCK: [2025-07-03 Thu 06:21]--[2025-07-03 Thu 06:33] =>  0:12
+:END:
+#+begin_src elisp :tangle yes
+
+
+  (defalias 'generate-test-list-of-strings (apply-partially #'generate-test-data :item-transformer #'char-to-string))
+  (defalias 'generate-test-list-of-floats-between-zero-and-one (apply-partially #'generate-test-data :list-transformer #'divide-array-values-by-max-array-value))
+  (defalias 'generate-test-list-of-floats (apply-partially #'generate-test-data :list-transformer #'divide-array-values-by-max-array-value))
+
+  (defalias 'generate-test-string (apply-partially #'generate-test-data :item-transformer #'identity :list-transformer #'seq--into-string))
+
+  (defalias 'generate-test-vector-of-integers (apply-partially #'generate-test-data :list-transformer #'seq--into-vector))
+
+  (defalias 'generate-test-alist-of-integers (apply-partially #'generate-test-data :list-transformer (-compose #'-applify-zip (-juxt #'reverse #'shuffle))))
+
+#+end_src
+
+#+RESULTS:
+
+
+
+** TODO generics for quickcheck
+:LOGBOOK:
+CLOCK: [2025-06-22 Sun 18:12]--[2025-06-22 Sun 18:40] =>  0:28
+CLOCK: [2025-06-22 Sun 16:04]--[2025-06-22 Sun 16:40] =>  0:36
+CLOCK: [2025-06-22 Sun 14:18]--[2025-06-22 Sun 14:44] =>  0:26
+CLOCK: [2025-06-22 Sun 12:11]--[2025-06-22 Sun 12:38] =>  0:27
+CLOCK: [2025-06-21 Sat 12:14]--[2025-06-21 Sat 12:40] =>  0:26
+CLOCK: [2025-06-22 Sun 22:34]--[2025-06-22 Sun 23:17] =>  0:43
+:END:
+*** TODO Semigroup
+**** Laws to test 
+***** For <>
+****** [Associativity] @x '<>' (y '<>' z) = (x '<>' y) '<>' z@
+***** For sconcat 
+******  [Unit]: @'sconcat' ('pure' x) = x@
+****** TODO [Multiplication]: @'sconcat' ('join' xss) = 'sconcat' ('fmap' 'sconcat' xss)@
+
+
+*** TODO Monoid
+*** TODO Functor
+- https://hackage.haskell.org/package/ghc-internal-9.1201.0/docs/src/GHC.Internal.Base.html#local-6989586621679720736
+**** TODO deftype for cl-constantly
+#+begin_src emacs-lisp :tangle yes
+;;  (cl-deftype)
+#+end_src
+**** TODO fmap 
+:LOGBOOK:
+CLOCK: [2025-07-02 Wed 08:47]--[2025-07-02 Wed 09:04] =>  0:17
+:END:
+***** DONE base fmap
+CLOSED: [2025-07-02 Wed 09:00]
+#+begin_src emacs-lisp :tangle yes
+  (cl-defgeneric fmap (function functor))
+  
+#+end_src
+***** DONE fmap for lists
+CLOSED: [2025-07-02 Wed 09:01]
+#+begin_src emacs-lisp :tangle yes
+(cl-defmethod fmap (function (functor list))
+    (seq-map function functor))
+#+end_src
+***** TODO fmap for vectors
+#+begin_SRC emacs-lisp :tangle yes
+(cl-defmethod fmap (function (functor vector))
+     (seq--into-vector (funcall (-compose #'seq-map function) functor)))
+#+end_src
+***** TODO fmap for strings
+#+begin_SRC emacs-lisp :tangle yes
+
+#+end_src
+
+***** TODO fmap for cons
+#+begin_SRC emacs-lisp :tangle yes
+
+#+end_src
+
+
+**** TODO <$
+- (<$) :: a -> [b] -> [a]
+- "a" <$ "earl" :: [String]
+:LOGBOOK:
+CLOCK: [2025-07-02 Wed 08:14]--[2025-07-02 Wed 08:41] =>  0:27
+CLOCK: [2025-07-02 Wed 07:42]--[2025-07-02 Wed 08:10] =>  0:28
+CLOCK: [2025-07-02 Wed 06:39]--[2025-07-02 Wed 06:53] =>  0:14
+:END:
+***** TODO <$ for strings, vectors, lists
+#+begin_SRC emacs-lisp :tangle yes
+(defun <$ (a fb)
+    (let ((func (funcall (-compose #'partial-fmap #'cl-constantly) a)))
+      (funcall func fb)))
+
+#+END_SRC
+***** TODO <$ for cons
+
+***** TODO <$ for constants
+
+*** TODO Applicative
+- https://hackage.haskell.org/package/ghc-internal-9.1201.0/docs/src/GHC.Internal.Base.html#local-6989586621679720736
+**** TODO pure 
+#+BEGIN_SRC emacs-lisp :tangle yes
+;;(pure "x" list)
+#+END_SRC
+**** TODO <*>
+-[(+2),(+1)]<*>[1,2,3] 
+-[3,4,5,2,3,4]
+#+BEGIN_SRC emacs-lisp :tangle yes
+;;(pure "x" list)
+#+END_SRC
+**** TODO liftA2
+#+BEGIN_SRC emacs-lisp :tangle yes
+;;(pure "x" list)
+#+END_SRC
+
+
+*** WAITING Monad
+- https://hackage.haskell.org/package/ghc-internal-9.1201.0/docs/src/GHC.Internal.Base.html#local-6989586621679720736
+#+BEGIN_SRC emacs-lisp :tangle yes
+
+
+#+END_SRC
+**** WAITING State Monad
+- https://hackage.haskell.org/package/mtl-2.3.1/docs/src/Control.Monad.State.Class.html#MonadState
+
+
+** WAITING std-gen
+- https://hackage-content.haskell.org/package/random-1.3.1/docs/System-Random-Stateful.html
+- https://hackage-content.haskell.org/package/random-1.3.1/docs/src/System.Random.Internal.html#genWord32
+#+BEGIN_SRC emacs-lisp :tangle yes
+
+
+#+END_SRC
+
+
+
+** WAITING random.hs
+- https://github.com/nick8325/quickcheck/blob/246943ea0049434c5ec0d5162e7581441e65c904/src/Test/QuickCheck/Random.hs
+:LOGBOOK:
+CLOCK: [2025-06-12 Thu 17:03]--[2025-06-12 Thu 17:15] =>  0:12
+CLOCK: [2025-06-11 Wed 09:09]--[2025-06-11 Wed 09:23] =>  0:14
+CLOCK: [2025-06-11 Wed 04:52]--[2025-06-11 Wed 05:12] =>  0:20
+:END:
+
+
+*** DONE qc-gen
+CLOSED: [2025-06-18 Wed 13:20]
+:LOGBOOK:
+CLOCK: [2025-06-20 Fri 15:40]--[2025-06-20 Fri 15:54] =>  0:14
+CLOCK: [2025-06-18 Wed 13:17]--[2025-06-18 Wed 13:20] =>  0:03
+CLOCK: [2025-06-18 Wed 11:27]--[2025-06-18 Wed 11:46] =>  0:19
+CLOCK: [2025-06-18 Wed 11:27]--[2025-06-18 Wed 11:27] =>  0:00
+CLOCK: [2025-06-17 Tue 11:07]--[2025-06-17 Tue 11:18] =>  0:11
+CLOCK: [2025-06-17 Tue 09:44]--[2025-06-17 Tue 10:11] =>  0:27
+CLOCK: [2025-06-17 Tue 07:55]--[2025-06-17 Tue 08:22] =>  0:27
+CLOCK: [2025-06-16 Mon 08:31]--[2025-06-16 Mon 08:59] =>  0:28
+CLOCK: [2025-06-16 Mon 04:56]--[2025-06-16 Mon 05:16] =>  0:20
+CLOCK: [2025-06-16 Mon 03:16]--[2025-06-16 Mon 03:36] =>  0:20
+CLOCK: [2025-06-16 Mon 01:18]--[2025-06-16 Mon 01:45] =>  0:27
+CLOCK: [2025-06-15 Sun 00:02]--[2025-06-15 Sun 00:39] =>  0:37
+CLOCK: [2025-06-14 Sat 22:33]--[2025-06-14 Sat 22:59] =>  0:26
+CLOCK: [2025-06-14 Sat 20:50]--[2025-06-14 Sat 21:16] =>  0:26
+CLOCK: [2025-06-13 Fri 18:47]--[2025-06-13 Fri 19:13] =>  0:26
+CLOCK: [2025-06-13 Fri 16:57]--[2025-06-13 Fri 17:23] =>  0:26
+CLOCK: [2025-06-13 Fri 15:21]--[2025-06-13 Fri 15:57] =>  0:36
+CLOCK: [2025-06-13 Fri 13:57]--[2025-06-13 Fri 14:25] =>  0:28
+CLOCK: [2025-06-13 Fri 11:28]--[2025-06-13 Fri 11:55] =>  0:27
+:END:
+#+begin_src elisp :tangle yes
+  ;; renames StdGen QcGen
+  ;; newtype QCGen = QCGen StdGen
+  ;; StdGen is renamed QCGen
+  ;; Then Show, Read, RandomGen instances are rewritten
+  ;; showPrec
+  ;; readPrec
+  ;; genRange
+  ;; next
+  (defclass qc-gen ()
+    ((seed
+      :initform '()
+      :type list
+      :reader read-seed
+      :writer next-int
+      :printer show-seed))
+    "quickcheck generator")
+
+
+#+END_SRC
+
+*** WAITING read-seed
+#+begin_src elisp :tangle yes
+  ;; declare pure?
+  (cl-defmethod read-seed ((qc qc-gen))
+    (-last-item (oref qc seed)))
+
+#+END_SRC
+
+*** WAITING show-seed
+#+begin_src elisp :tangle yes
+  ;; declare pure?
+  ;; showsPrec n (QCGen g) s = showsPrec n g s
+  (cl-defmethod show-seed ((qc qc-gen))
+    (princ (read-seed qc)))
+#+END_SRC
+
+*** WAITING next-int
+#+begin_src elisp :tangle yes
+  (cl-defmethod next-int ((qc qc-gen))
+    ;; Next integer between 0 and 999
+    (let** ((previous (oref qc seed))
+  	(next (std-gen))
+  	(new-qc (oset qc seed (append previous (list next)))))
+      (list next qc)))
+
+#+END_SRC
+*** WAITING next-double
+#+begin_src elisp :tangle yes
+  (cl-defmethod next-double ((qc qc-gen))
+    ;; Next double between 0 and 1
+    (-let (((int new-qc) (next-int qc)))
+      (list (/ int THOUSAND) qc)))
+#+END_SRC
+
+
+*** WAITING next-integer
+#+begin_src elisp :tangle yes
+  (cl-defmethod next-integer ((qc qc-gen) &optional &key min &key max)    
+    (when (and min max (greater-than-or-equal min max))
+      (error "min must be less than max"))
+    (let** ((minimum (or min most-negative-fixnum))
+  	 (maximum (or max most-positive-fixnum))
+  	 (double-and-qc-gen (next-double qc))
+  	 (next (scale-float-to-range (list minimum maximum) (-first-item double-and-qc-gen))))  	 
+      (list (truncate next) qc)))
+
+#+END_SRC
+
+** WAITING gen.hs
+:LOGBOOK:
+CLOCK: [2025-06-20 Fri 15:31]--[2025-06-20 Fri 15:40] =>  0:09
+CLOCK: [2025-06-20 Fri 13:50]--[2025-06-20 Fri 14:16] =>  0:26
+CLOCK: [2025-06-20 Fri 10:08]--[2025-06-20 Fri 10:33] =>  0:25
+CLOCK: [2025-06-18 Wed 15:34]--[2025-06-18 Wed 15:45] =>  0:00
+CLOCK: [2025-06-18 Wed 13:20]--[2025-06-18 Wed 13:46] =>  0:26
+CLOCK: [2025-06-18 Wed 11:08]--[2025-06-18 Wed 11:27] =>  0:19
+CLOCK: [2025-06-18 Wed 09:25]--[2025-06-18 Wed 09:53] =>  0:28
+CLOCK: [2025-06-18 Wed 07:23]--[2025-06-18 Wed 07:49] =>  0:26
+CLOCK: [2025-06-17 Tue 11:18]--[2025-06-17 Tue 11:34] =>  0:16
+CLOCK: [2025-06-12 Thu 13:52]--[2025-06-12 Thu 13:52] =>  0:00
+CLOCK: [2025-06-11 Wed 14:12]--[2025-06-11 Wed 14:38] =>  0:26
+CLOCK: [2025-06-11 Wed 12:23]--[2025-06-11 Wed 12:59] =>  0:36
+CLOCK: [2025-06-11 Wed 10:48]--[2025-06-11 Wed 11:16] =>  0:28
+CLOCK: [2025-06-11 Wed 09:24]--[2025-06-11 Wed 09:30] =>  0:06
+:END:
+- https://github.com/nick8325/quickcheck/blob/246943ea0049434c5ec0d5162e7581441e65c904/src/Test/QuickCheck/Random.hs
+#+begin_src elisp :tangle yes
+  ;; newtype Age = Age { unAge:: Int}
+  ;; constructor
+  ;; Age :: Int -> Age
+  ;; deconstructor
+  ;; unAge :: Age -> Int
+
+  ;; newtype Gen a = MkGen{ unGen :: QCGen -> Int -> a}
+  ;; constructor
+  ;; Gen a :: a -> Gen a
+  ;; deconstructor
+  ;; unGen ::  Gen a -> QCGen -> Int -> a
+  ;; unGen -> 
+  ;; To get a value out generate :: Gen a -> IO a
+  (defclass gen ()
+    ((generator
+      :initarg :generator
+      :type symbol
+      :accessor un-gen))
+    "generator creator")
+#+END_SRC
+
+*** WAITING un-gen
+#+begin_src elisp :tangle yes
+#+END_SRC
+*** WAITING gen-fmap
+#+begin_src elisp :tangle yes
+  (cl-defgeneric gen-fmap (gen)
+      ;; Uses a qc-gen seed and a SIZE
+      ;; Returns a generator
+    )
+#+END_SRC
+*** WAITING gen-applicative
+#+begin_src elisp :tangle yes
+  (cl-defgeneric gen-applicative (gen)
+      ;; Uses a qc-gen seed and a SIZE
+      ;; Returns a generator
+    )
+#+END_SRC
+
+*** WAITING gen-monad
+#+begin_src elisp :tangle yes
+  (cl-defgeneric gen-monad (un-gen)
+      ;; Uses a qc-gen seed and a SIZE
+      ;; Returns a generator
+    )
+#+END_SRC
+
+*** WAITING gen-sequencer ">>"
+#+begin_src elisp :tangle yes
+  (cl-defgeneric gen-sequencer (gen)
+      ;; Uses a qc-gen seed and a SIZE
+      ;; Returns a generator
+    )
+#+END_SRC
+
+*** WAITING gen-monad-fix
+#+begin_src elisp :tangle yes
+  (cl-defgeneric gen-monad-fix (gen)
+      ;; Uses a qc-gen seed and a SIZE
+      ;; Returns a generator
+    )
+#+END_SRC
+
+*** WAITING choose-integer
+*** WAITING choose-enum is generic for lists, vectors, alist, plist, and eventually hash-maps
+
+
+** Long Term
+**** Test result via evaluation of org-mode
+** Cancelled 
+*** CANCELLED Test and write qc-gen
+CLOSED: [2025-06-09 Mon 02:44]
+:LOGBOOK:
+CLOCK: [2025-06-09 Mon 02:27]--[2025-06-09 Mon 02:44] =>  0:17
+CLOCK: [2025-06-09 Mon 00:40]--[2025-06-09 Mon 01:08] =>  0:28
+CLOCK: [2025-06-08 Sun 22:58]--[2025-06-08 Sun 23:34] =>  0:36
+CLOCK: [2025-06-08 Sun 21:37]--[2025-06-08 Sun 22:04] =>  0:27
+CLOCK: [2025-06-08 Sun 20:06]--[2025-06-08 Sun 20:32] =>  0:26
+:END:
+
+*** CANCELLED Test and write qc-integer
+:LOGBOOK:
+CLOCK: [2025-06-09 Mon 02:44]--[2025-06-09 Mon 02:53] =>  0:09
+:END:
+*** CANCELLED wrap-std-gen
+:LOGBOOK:
+CLOCK: [2025-06-12 Thu 16:50]--[2025-06-12 Thu 17:03] =>  0:13
+CLOCK: [2025-06-12 Thu 13:52]--[2025-06-12 Thu 14:18] =>  0:26
+CLOCK: [2025-06-11 Wed 09:05]--[2025-06-11 Wed 09:09] =>  0:04
+CLOCK: [2025-06-11 Wed 06:41]--[2025-06-11 Wed 07:08] =>  0:27
+:END:
+*** CANCELLED make-qc-gen
+
+
+** End
+#+begin_src elisp :tangle yes
+(provide 'quickcheck)
+#+END_SRC
+
+#+RESULTS:
+: quickcheck
