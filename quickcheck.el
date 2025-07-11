@@ -47,16 +47,20 @@
 
 (defalias '-applify-rpartial (-applify #'-rpartial))
 (defalias '-applify-partial (-applify #'-partial))
+
+(defalias '-applify-subtract (-applify #'-))
+
+(defalias '-iterate-plus-one  (apply-partially #'-iterate #'1+))
+(defalias '-first-and-last-item  (-juxt #'-first-item #'-last-item))
+(defalias '-applify-zip  (-applify #'-zip))
+(defalias '-applify-cons  (-applify #'cons))
+(defalias '-applify-mapcar  (-applify #'mapcar))
+
 (defalias 'divide-by-THOUSAND   (-rpartial #'/ THOUSAND))
-  (defalias '-applify-subtract (-applify #'-))
-
-  (defalias '-iterate-plus-one  (apply-partially #'-iterate #'1+))
-  (defalias '-first-and-last-item  (-juxt #'-first-item #'-last-item))
-  (defalias '-applify-zip  (-applify #'-zip))
-  (defalias '-applify-cons  (-applify #'cons))
-  (defalias '-applify-mapcar  (-applify #'mapcar))
-
 (defalias 'divide-array-values-by-max-array-value (-compose #'-applify-mapcar (-juxt (-compose #'-applify-rpartial (apply-partially #'list #'/) #'float #'1+ #'-max) #'identity)))
+(defalias '-applify-divide (-applify #'/))
+
+(defalias 'print (apply-partially #'message "%s"))
 
 (defun times (function n)
   (cdr (-iterate function nil (1+ n))))
@@ -112,46 +116,62 @@
 (defun random-float-between-0-and-1 ()    
   (funcall (-compose #'convert-calc-value-into-lisp #'math-random-float)))
 
-(defun random-integer-in-range (range)
-  (funcall (-compose (apply-partially #'scale-float-to-range range)  #'random-float-between-0-and-1)))
+(cl-defun random-integer-in-range ((min max))
+  (if (eql min max)
+      min
+    (funcall (-compose (apply-partially #'scale-float-to-range (list min max))  #'random-float-between-0-and-1))))
 
 (defalias 'random-integer-in-range-255 (apply-partially #'random-integer-in-range DEFAULTRANDOMNUMBERRANGE))
-(defalias 'divide-array-values-by-random-array-value (apply-partially #'mapcar (-compose #'-applify-rpartial (apply-partially #'list #'/) #'random-integer-in-range-255)))
 
 (defun random-integer-list (length)    
-  (funcall (-compose #'shuffle #'-iterate-plus-one) (math-random-three-digit-number) length))
-
+  (funcall (-compose #'shuffle #'-iterate-plus-one) (math-random-three-digit-number) length))  
 (defalias 'random-integer-list-in-range-255 (-compose #'random-integer-list #'random-integer-in-range-255))
 
+(defun n-random-values-from-array (count array)
+  (funcall (-compose (apply-partially #'take count) #'shuffle) array))
+
 (defalias 'random-array-value (-compose #'-first-item #'shuffle))
+
+(defalias 'two-random-array-value (apply-partially #'n-random-values-from-array 2))
+(defalias 'random-con-from-array (-compose #'-applify-cons #'two-random-array-value))
 
 (defun random-integer-range (length)    
   (funcall (-juxt #'identity (apply-partially #'+ length))
 	   (math-random-three-digit-number)))
+
+(defalias 'divide-by-random-value (funcall (-compose #'-applify-rpartial (apply-partially #'list #'/) (-compose #'float #'random-integer-in-range-255))))
+
+(defalias 'divide-array-values-by-random-value (apply-partially #'mapcar #'divide-by-random-value))
 
 (cl-defun generate-test-data (&optional &key item-transformer &key list-transformer
 				     &key min-length &key max-length)
   (let* ((min-items (or min-length 1))
 	 (max-items (or max-length 255))
 	 (item-func (or item-transformer #'identity))
-	 (list-func (or list-transformer #'identity))
+	 (list-func (or list-transformer #'shuffle))
 	 (range-length (random-integer-in-range (list min-items max-items)))
 	 (list-items (random-integer-list range-length)))
     (funcall (-on list-func (apply-partially #'mapcar item-func)) list-items)))
 
+(defalias 'generate-test-list-of-floats-between-zero-and-one (apply-partially #'generate-test-data :list-transformer (-compose #'divide-array-values-by-max-array-value #'shuffle)))
+(defalias 'generate-test-list-of-floats (apply-partially #'generate-test-data :list-transformer (-compose #'divide-array-values-by-random-value #'shuffle)))
 (defalias 'generate-test-list-of-strings (apply-partially #'generate-test-data :item-transformer #'char-to-string))
-(defalias 'generate-test-list-of-floats-between-zero-and-one (apply-partially #'generate-test-data :list-transformer #'divide-array-values-by-max-array-value))
-(defalias 'generate-test-list-of-floats (apply-partially #'generate-test-data :list-transformer #'divide-array-values-by-max-array-value))
 
-(defalias 'generate-test-string (apply-partially #'generate-test-data :item-transformer #'identity :list-transformer #'seq--into-string))
+(defalias 'generate-test-string (apply-partially #'generate-test-data :item-transformer #'identity :list-transformer (-compose #'seq--into-string #'shuffle)))
 
-(defalias 'generate-test-vector-of-integers (apply-partially #'generate-test-data :list-transformer #'seq--into-vector))
+
+(defalias 'generate-test-vector-of-integers (apply-partially #'generate-test-data :list-transformer (-compose #'seq--into-vector #'shuffle)))
 
 (defalias 'generate-test-alist-of-integers (apply-partially #'generate-test-data :list-transformer (-compose #'-applify-zip (-juxt #'reverse #'shuffle))))
 
+
+(defalias 'generate-test-con-of-integers (apply-partially #'generate-test-data :min-length 2 :list-transformer #'random-con-from-array))  
+(defalias 'generate-test-con-of-floats (apply-partially #'generate-test-data :min-length 2 :list-transformer (-compose #'random-con-from-array #'divide-array-values-by-max-array-value)))
+(defalias 'generate-test-con-of-strings (apply-partially #'generate-test-data :min-length 2 :item-transformer #'char-to-string :list-transformer #'random-con-from-array))
+
 ;;  (cl-deftype)
 
-(cl-defgeneric fmap (function functor))
+
 
 (cl-defmethod fmap (function (functor list))
     (seq-map function functor))

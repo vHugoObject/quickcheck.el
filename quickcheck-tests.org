@@ -112,7 +112,23 @@ CLOSED: [2025-07-01 Tue 01:56]
   	(should-not (seq-difference actual-shuffled-list test-list))))
 #+END_SRC
 
-*** DONE random-array-value
+
+*** DONE n-random-values-from-array
+CLOSED: [2025-07-08 Tue 22:00]
+:LOGBOOK:
+CLOCK: [2025-07-08 Tue 21:53]--[2025-07-08 Tue 21:57] =>  0:04
+CLOCK: [2025-07-08 Tue 19:43]--[2025-07-08 Tue 20:10] =>  0:27
+CLOCK: [2025-07-07 Mon 22:27]--[2025-07-07 Mon 22:31] =>  0:04
+:END:
+#+begin_src elisp :tangle yes
+  (ert-deftest-n-times n-random-values-from-array 100
+    (-let* (((test-count test-list) (funcall (-compose (-juxt (-compose #'random-integer-in-range (apply-partially #'list 0)  #'seq-length) #'identity)
+  						   #'random-integer-list-in-range-255)))
+  	 ((actual-random-values actual-length) (funcall (-compose (-juxt #'identity #'seq-length) #'n-random-values-from-array) test-count test-list)))
+      (should (eql actual-length test-count))))
+      
+#+end_src
+**** DONE random-array-value
 CLOSED: [2025-07-05 Sat 08:34]
 :LOGBOOK:
 CLOCK: [2025-07-05 Sat 06:37]--[2025-07-05 Sat 06:46] =>  0:09
@@ -123,6 +139,7 @@ CLOCK: [2025-07-05 Sat 05:02]--[2025-07-05 Sat 05:09] =>  0:07
     (-let* (((actual-value test-array) (funcall (-compose (-juxt #'random-array-value #'identity) #'random-integer-list-in-range-255))))
       (should (memq actual-value test-array))))  		     
 #+end_src
+
 
 ** DONE Test random-integer-in-range
 CLOSED: [2025-06-30 Mon 21:19]
@@ -152,6 +169,7 @@ CLOSED: [2025-07-03 Thu 06:51]
     (should (eql (range-size actual-range) expected-range-length))))
 #+END_SRC
 
+
 ** DONE Test divide-array-values-by-max-array-value
 CLOSED: [2025-07-05 Sat 08:34]
 :LOGBOOK:
@@ -169,47 +187,73 @@ CLOCK: [2025-07-04 Fri 03:13]--[2025-07-04 Fri 03:14] =>  0:01
 CLOCK: [2025-07-05 Sat 08:47]--[2025-07-05 Sat 08:48] =>  0:01
 :END:
 
+** DONE Test divide-by-random-value
+CLOSED: [2025-07-07 Mon 19:25]
+:LOGBOOK:
+CLOCK: [2025-07-07 Mon 19:18]--[2025-07-07 Mon 19:25] =>  0:07
+CLOCK: [2025-07-07 Mon 19:16]--[2025-07-07 Mon 19:17] =>  0:01
+CLOCK: [2025-07-07 Mon 14:36]--[2025-07-07 Mon 14:56] =>  0:20
+:END:
+#+begin_src emacs-lisp :tangle yes
+  (ert-deftest-n-times divide-by-random-value 100
+    (-let* (((actual-result actual-input-value) (funcall (-compose (-juxt #'divide-by-random-value #'identity) #'random-integer-in-range-255))))
+      (should (floatp actual-result))
+      (should (less-than-or-equal actual-result actual-input-value))))
+#+end_src
 ** CANCELLED Test divide-array-values-by-min-array-value
 :LOGBOOK:
 CLOCK: [2025-07-04 Fri 05:58]--[2025-07-04 Fri 06:08] =>  0:10
 CLOCK: [2025-07-04 Fri 04:33]--[2025-07-04 Fri 05:01] =>  0:28
 CLOCK: [2025-07-04 Fri 04:21]--[2025-07-04 Fri 04:23] =>  0:02
 :END:
-** TODO Test divide-array-values-by-random-value
+** DONE Test divide-array-values-by-random-value
+CLOSED: [2025-07-07 Mon 19:27]
 :LOGBOOK:
+CLOCK: [2025-07-07 Mon 19:25]--[2025-07-07 Mon 19:27] =>  0:02
+CLOCK: [2025-07-07 Mon 19:17]--[2025-07-07 Mon 19:17] =>  0:00
+CLOCK: [2025-07-07 Mon 14:30]--[2025-07-07 Mon 14:30] =>  0:00
 CLOCK: [2025-07-05 Sat 08:35]--[2025-07-05 Sat 08:40] =>  0:05
 :END:
 #+begin_src emacs-lisp :tangle yes
   (ert-deftest-n-times divide-array-values-by-random-array-value 100
-    (-let* (((actual-list expected-list-length) (funcall (-juxt #'divide-array-values-by-random-array-value #'seq-length)  (random-integer-list-in-range-255))))
+    (-let* (((actual-list expected-list-length) (funcall (-juxt #'divide-array-values-by-random-value #'seq-length)  (random-integer-list-in-range-255))))
       (should (eql (seq-count-floats actual-list) expected-list-length))))
 #+end_src
 
+
 ** TODO Test generate-test-data
-*** TODO Lists
-**** TODO List of integers
+*** DONE Lists
+CLOSED: [2025-07-07 Mon 21:56]
+**** DONE List of integers
+CLOSED: [2025-07-07 Mon 21:44]
+:LOGBOOK:
+CLOCK: [2025-07-07 Mon 21:38]--[2025-07-07 Mon 21:44] =>  0:06
+:END:
 #+begin_src elisp :tangle yes
   (ert-deftest-n-times generate-test-data-for-list-of-integers 100
-      (let* ((actual-list (generate-test-data :min-length 1 :max-length 255))
-  	   (actual-integer-count (seq-count-integers actual-list)))
-        (should (equal actual-integer-count (seq-length actual-list)))
+      (-let* (((actual-integer-count actual-list-length actual-list)
+  	     (funcall (-compose (-juxt #'seq-count-integers #'seq-length #'identity) #'generate-test-data) :min-length 1 :max-length 255)))
+        (should (eql actual-integer-count actual-list-length))
         (should (between-one-and-255 actual-integer-count))))
 #+END_SRC
-**** TODO List of floats between zero and one
+**** DONE List of floats between zero and one
+CLOSED: [2025-07-07 Mon 21:47]
 :LOGBOOK:
+CLOCK: [2025-07-07 Mon 21:44]--[2025-07-07 Mon 21:47] =>  0:03
 CLOCK: [2025-07-04 Fri 06:17]--[2025-07-04 Fri 06:24] =>  0:07
 CLOCK: [2025-07-04 Fri 03:31]--[2025-07-04 Fri 03:31] =>  0:00
 CLOCK: [2025-07-04 Fri 03:28]--[2025-07-04 Fri 03:29] =>  0:01
 :END:
 #+begin_src elisp :tangle yes
   (ert-deftest-n-times generate-test-data-for-list-of-floats-1 100
-      (let* ((actual-list (generate-test-list-of-floats-between-zero-and-one))  	   
-  	   (actual-float-count (seq-count-between-zero-and-one actual-list)))
-        (should (eql actual-float-count (seq-length actual-list)))
-        (should (between-one-and-255 actual-float-count))))
+    (-let* (((actual-floats-count actual-list-length actual-list)
+  	     (funcall (-compose (-juxt #'seq-count-floats #'seq-length #'identity) #'generate-test-list-of-floats-between-zero-and-one))))
+        (should (eql actual-floats-count actual-list-length))
+        (should (between-one-and-255 actual-floats-count))))
 #+END_SRC
 
-**** TODO List of floats 
+**** DONE List of floats 
+CLOSED: [2025-07-07 Mon 19:29]
 :LOGBOOK:
 CLOCK: [2025-07-05 Sat 04:44]--[2025-07-05 Sat 05:02] =>  0:18
 CLOCK: [2025-07-04 Fri 04:20]--[2025-07-04 Fri 04:21] =>  0:01
@@ -217,65 +261,129 @@ CLOCK: [2025-07-04 Fri 04:17]--[2025-07-04 Fri 04:18] =>  0:01
 CLOCK: [2025-07-04 Fri 03:32]--[2025-07-04 Fri 03:39] =>  0:07
 :END:
 #+begin_src elisp :tangle yes
-  (ert-deftest-n-times generate-test-data-for-list-of-floats-2 0
-      (-let* (((actual-float-count test-list-length)
+  (ert-deftest-n-times generate-test-data-for-list-of-floats-2 100
+      (-let* (((actual-floats-count test-list-length)
   	     (funcall (-compose (-juxt #'seq-count-floats #'seq-length) #'generate-test-list-of-floats))))
-        (should (eql actual-float-count test-list-length))))
+        (should (eql actual-floats-count test-list-length))
+        (should (between-one-and-255 actual-floats-count))))
 #+END_SRC
 
-
-**** TODO List of strings
+**** DONE List of strings
+CLOSED: [2025-07-07 Mon 21:52]
+:LOGBOOK:
+CLOCK: [2025-07-07 Mon 21:47]--[2025-07-07 Mon 21:52] =>  0:05
+:END:
 #+begin_src elisp :tangle yes
   (ert-deftest-n-times generate-test-data-for-list-of-strings 100
-      (let* ((actual-list (generate-test-list-of-strings))
-  	   (actual-string-count (seq-count-strings actual-list)))
-        (should (equal actual-string-count (seq-length actual-list)))
-        (should (between-one-and-255 actual-string-count))))
+      (-let* (((actual-strings-count test-list-length)
+  	     (funcall (-compose (-juxt #'seq-count-strings #'seq-length) #'generate-test-list-of-strings))))
+        (should (eql actual-strings-count test-list-length))
+        (should (between-one-and-255 actual-strings-count))))
 #+END_SRC
 
 
-*** TODO Single String
+*** DONE Single String
+CLOSED: [2025-07-07 Mon 21:54]
+:LOGBOOK:
+CLOCK: [2025-07-07 Mon 21:52]--[2025-07-07 Mon 21:55] =>  0:03
+:END:
 #+begin_src elisp :tangle yes
   (ert-deftest-n-times generate-test-data-for-single-string 100
-      (let* ((actual-string (generate-test-string))
+    (let* ((actual-string (generate-test-string))
   	   (actual-string-length (seq-length actual-string)))
-        (should (stringp actual-string))
+      (should (stringp actual-string))
       (should (between-one-and-255 actual-string-length))))
 #+END_SRC
+
 *** TODO vectors
-**** TODO vector of integers
+**** DONE vector of integers
+CLOSED: [2025-07-07 Mon 21:59]
+:LOGBOOK:
+CLOCK: [2025-07-07 Mon 21:59]--[2025-07-07 Mon 21:59] =>  0:00
+CLOCK: [2025-07-07 Mon 21:55]--[2025-07-07 Mon 21:58] =>  0:03
+:END:
 #+begin_src elisp :tangle yes
   (ert-deftest-n-times generate-test-data-for-vector-of-integers 100
-      (let* ((actual-vector (generate-test-vector-of-integers))
-  	   (actual-integer-count (seq-count-integers actual-vector)))
-        (should (vectorp actual-vector))
-        (should (equal actual-integer-count (seq-length actual-vector)))
-        (should (between-one-and-255 actual-integer-count))))
+    (-let* (((actual-integers-count test-vector-length actual-vector)
+  	     (funcall (-compose (-juxt #'seq-count-integers #'seq-length #'identity) #'generate-test-vector-of-integers))))
+      (should (vectorp actual-vector))
+      (should (eql actual-integers-count test-vector-length))
+      (should (between-one-and-255 actual-integers-count))))
 #+END_SRC
 
 
-*** TODO alists
-**** TODO alist of integers
+*** alists
+**** DONE alist of integers
+CLOSED: [2025-07-07 Mon 22:06]
+:LOGBOOK:
+CLOCK: [2025-07-07 Mon 21:59]--[2025-07-07 Mon 22:06] =>  0:07
+:END:
 #+begin_src elisp :tangle yes
   (ert-deftest-n-times generate-test-data-for-alist 100
-      (let* ((actual-alist (generate-test-alist-of-integers))
-  	   (actual-cons-count (seq-count-cons actual-alist)))
-        (should (equal actual-cons-count (seq-length actual-alist)))
+      (-let* (((actual-cons-count actual-alist-length actual-alist) (funcall (-compose (-juxt #'seq-count-cons #'seq-length #'identity) #'generate-test-alist-of-integers))))
+        (should (equal actual-cons-count actual-alist-length))
         (should (between-one-and-255 actual-cons-count))))
 #+END_SRC
 
-*** TODO con
-**** TODO con
+*** con
+**** DONE con of integers
+CLOSED: [2025-07-08 Tue 22:12]
 :LOGBOOK:
+CLOCK: [2025-07-07 Mon 22:19]--[2025-07-07 Mon 22:21] =>  0:02
+CLOCK: [2025-07-07 Mon 19:29]--[2025-07-07 Mon 19:34] =>  0:05
 CLOCK: [2025-07-04 Fri 03:31]--[2025-07-04 Fri 03:32] =>  0:01
 :END:
 #+begin_src elisp :tangle yes
-  (ert-deftest-n-times generate-test-data-for-con 0
-    (should (consp (generate-test-con))))
+  (ert-deftest-n-times generate-test-data-for-con-0 100
+    (-let (((actual-con actual-car actual-cdr)(funcall (-compose (-juxt #'identity #'car #'cdr) #'generate-test-con-of-integers))))
+  	 (should (consp actual-con))
+  	 (should (integerp actual-car))
+  	 (should (integerp actual-cdr))))
+#+END_SRC
+**** DONE con of floats
+CLOSED: [2025-07-08 Tue 23:38]
+:LOGBOOK:
+CLOCK: [2025-07-07 Mon 22:21]--[2025-07-07 Mon 22:25] =>  0:04
+CLOCK: [2025-07-07 Mon 19:34]--[2025-07-07 Mon 19:36] =>  0:02
+:END:
+#+begin_src elisp :tangle yes
+  (ert-deftest-n-times generate-test-data-for-con-1 100
+    (-let (((actual-con actual-car actual-cdr)(funcall (-compose (-juxt #'identity #'car #'cdr) #'generate-test-con-of-floats))))
+  	 (should (consp actual-con))
+  	 (should (floatp actual-car))
+  	 (should (floatp actual-cdr))))
 #+END_SRC
 
 
+**** DONE con of strings
+CLOSED: [2025-07-08 Tue 23:41]
+#+begin_src elisp :tangle yes
+  (ert-deftest-n-times generate-test-data-for-con-2 100
+    (-let (((actual-con actual-car actual-cdr)(funcall (-compose (-juxt #'identity #'car #'cdr) #'generate-test-con-of-strings))))
+  	 (should (consp actual-con))
+  	 (should (stringp actual-car))
+  	 (should (stringp actual-cdr))))
+#+end_src
 
+
+* semigroup tests
+** concat 
+*** TODO string
+:LOGBOOK:
+CLOCK: [2025-07-08 Tue 23:56]--[2025-07-08 Tue 23:59] =>  0:03
+CLOCK: [2025-07-08 Tue 23:52]--[2025-07-08 Tue 23:54] =>  0:02
+:END:
+#+begin_src elisp :tangle yes
+  (ert-deftest-n-times concat-string 100
+      (-let* ((test-string-one test-string-two) (generate-test-string))
+        ()))
+#+end_src
+*** TODO list
+*** TODO vector
+** stimes
+*** TODO string
+*** TODO list
+*** TODO vector
 * functor tests
 ** Functor laws
 - [Identity]    @'fmap' 'id' == 'id'@

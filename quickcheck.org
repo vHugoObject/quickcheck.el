@@ -14,7 +14,6 @@
 | \_  Cancelled               |         | 3:33 |
 #+END:
 
-** TODO Move to a seperate folder and version control
 ** imports
 #+begin_src elisp :tangle yes
   ;;; quickcheck.el --- Quickcheck clone       -**- lexical-binding: t -**-
@@ -74,7 +73,8 @@ CLOSED: [2025-07-03 Thu 06:54]
 #+begin_src elisp :tangle yes
   (defalias '2+ (apply-partially #'+ 2))
 #+end_src
-*** TODO Comparison functions aliases
+*** DONE Comparison functions aliases
+CLOSED: [2025-07-08 Tue 23:42]
 :LOGBOOK:
 CLOCK: [2025-07-04 Fri 04:18]--[2025-07-04 Fri 04:20] =>  0:02
 :END:
@@ -120,6 +120,7 @@ CLOCK: [2025-07-01 Tue 05:09]--[2025-07-01 Tue 05:13] =>  0:04
 
 *** Dash aliases
 :LOGBOOK:
+CLOCK: [2025-07-07 Mon 14:30]--[2025-07-07 Mon 14:35] =>  0:05
 CLOCK: [2025-07-05 Sat 08:49]--[2025-07-05 Sat 09:16] =>  0:27
 CLOCK: [2025-07-05 Sat 08:40]--[2025-07-05 Sat 08:46] =>  0:06
 CLOCK: [2025-07-05 Sat 08:34]--[2025-07-05 Sat 08:35] =>  0:01
@@ -128,20 +129,23 @@ CLOCK: [2025-07-04 Fri 04:23]--[2025-07-04 Fri 04:33] =>  0:10
 CLOCK: [2025-07-04 Fri 03:14]--[2025-07-04 Fri 03:16] =>  0:02
 CLOCK: [2025-07-03 Thu 17:35]--[2025-07-03 Thu 17:49] =>  0:14
 :END:
-- from: generate-test-data/generate-test-list-of-floats
-#+begin_src elisp :tangle yes  
-    (defalias '-applify-rpartial (-applify #'-rpartial))
+#+begin_src elisp :tangle yes
+  (defalias '-applify-rpartial (-applify #'-rpartial))
   (defalias '-applify-partial (-applify #'-partial))
+
+  (defalias '-applify-subtract (-applify #'-))
+
+  (defalias '-iterate-plus-one  (apply-partially #'-iterate #'1+))
+  (defalias '-first-and-last-item  (-juxt #'-first-item #'-last-item))
+  (defalias '-applify-zip  (-applify #'-zip))
+  (defalias '-applify-cons  (-applify #'cons))
+  (defalias '-applify-mapcar  (-applify #'mapcar))
+
   (defalias 'divide-by-THOUSAND   (-rpartial #'/ THOUSAND))
-    (defalias '-applify-subtract (-applify #'-))
-
-    (defalias '-iterate-plus-one  (apply-partially #'-iterate #'1+))
-    (defalias '-first-and-last-item  (-juxt #'-first-item #'-last-item))
-    (defalias '-applify-zip  (-applify #'-zip))
-    (defalias '-applify-cons  (-applify #'cons))
-    (defalias '-applify-mapcar  (-applify #'mapcar))
-
   (defalias 'divide-array-values-by-max-array-value (-compose #'-applify-mapcar (-juxt (-compose #'-applify-rpartial (apply-partially #'list #'/) #'float #'1+ #'-max) #'identity)))
+  (defalias '-applify-divide (-applify #'/))
+
+  (defalias 'print (apply-partially #'message "%s"))
 
 
 #+end_src
@@ -162,8 +166,6 @@ CLOCK: [2025-07-03 Thu 17:35]--[2025-07-03 Thu 17:49] =>  0:14
 #+BEGIN_SRC emacs-lisp :tangle yes
   (defun times-no-args (function n)
     (cdr (-iterate (lambda (_) (funcall function)) nil (1+ n))))
-
-
 
 #+END_SRC
 
@@ -208,7 +210,7 @@ CLOCK: [2025-07-03 Thu 06:48]--[2025-07-03 Thu 06:51] =>  0:03
 
 *** TODO calc-extensions
 - from: divide-array-values-by-random-array-value
-**** TODO
+**** TODO cons-vec
 #+begin_src elisp :tangle yes
   (defalias 'cons-vec (apply-partially #'cons 'vec))
 #+end_src
@@ -266,11 +268,15 @@ CLOSED: [2025-06-22 Sun 16:23]
 *** DONE random-integer-in-range
 CLOSED: [2025-06-30 Mon 21:19]
 :LOGBOOK:
+CLOCK: [2025-07-07 Mon 22:13]--[2025-07-07 Mon 22:17] =>  0:04
 CLOCK: [2025-06-30 Mon 21:11]--[2025-06-30 Mon 21:19] =>  0:08
 :END:
 #+begin_src elisp :tangle yes
-    (defun random-integer-in-range (range)
-      (funcall (-compose (apply-partially #'scale-float-to-range range)  #'random-float-between-0-and-1)))
+  (cl-defun random-integer-in-range ((min max))
+    (if (eql min max)
+        min
+      (funcall (-compose (apply-partially #'scale-float-to-range (list min max))  #'random-float-between-0-and-1))))
+  
 #+end_src
 *** DONE random-integer-in-range-255
 CLOSED: [2025-07-01 Tue 02:04]
@@ -278,10 +284,13 @@ CLOSED: [2025-07-01 Tue 02:04]
 CLOCK: [2025-07-01 Tue 02:01]--[2025-07-01 Tue 02:04] =>  0:03
 :END:
 #+begin_src elisp :tangle yes
-  (defalias 'random-integer-in-range-255 (apply-partially #'random-integer-in-range DEFAULTRANDOMNUMBERRANGE))
-  (defalias 'divide-array-values-by-random-array-value (apply-partially #'mapcar (-compose #'-applify-rpartial (apply-partially #'list #'/) #'random-integer-in-range-255)))
+ (defalias 'random-integer-in-range-255 (apply-partially #'random-integer-in-range DEFAULTRANDOMNUMBERRANGE))
   
+
 #+end_src
+
+#+RESULTS:
+: 1
 
 *** DONE random-integer-list
 CLOSED: [2025-07-01 Tue 05:21]
@@ -293,18 +302,39 @@ CLOCK: [2025-07-01 Tue 01:59]--[2025-07-01 Tue 02:01] =>  0:02
 :END:
 #+begin_src elisp :tangle yes
   (defun random-integer-list (length)    
-    (funcall (-compose #'shuffle #'-iterate-plus-one) (math-random-three-digit-number) length))
-  
+    (funcall (-compose #'shuffle #'-iterate-plus-one) (math-random-three-digit-number) length))  
   (defalias 'random-integer-list-in-range-255 (-compose #'random-integer-list #'random-integer-in-range-255))
 #+end_src
-*** DONE random-array-value
-CLOSED: [2025-07-05 Sat 08:34]
+
+*** DONE n-random-values-from-array
+CLOSED: [2025-07-08 Tue 22:00]
 :LOGBOOK:
+CLOCK: [2025-07-08 Tue 21:57]--[2025-07-08 Tue 22:00] =>  0:03
+CLOCK: [2025-07-07 Mon 22:25]--[2025-07-07 Mon 22:27] =>  0:02
+CLOCK: [2025-07-07 Mon 22:25]--[2025-07-07 Mon 22:25] =>  0:00
+:END:
+#+begin_src elisp :tangle yes
+  (defun n-random-values-from-array (count array)
+    (funcall (-compose (apply-partially #'take count) #'shuffle) array))
+#+end_src
+**** DONE random-array-value
+CLOSED: [2025-07-08 Tue 22:02]
+:LOGBOOK:
+CLOCK: [2025-07-08 Tue 22:01]--[2025-07-08 Tue 22:02] =>  0:01
 CLOCK: [2025-07-05 Sat 08:32]--[2025-07-05 Sat 08:34] =>  0:02
 CLOCK: [2025-07-05 Sat 06:46]--[2025-07-05 Sat 07:02] =>  0:16
 :END:
 #+begin_src elisp :tangle yes
   (defalias 'random-array-value (-compose #'-first-item #'shuffle))
+#+end_src
+**** DONE two-random-array-values
+CLOSED: [2025-07-08 Tue 22:12]
+:LOGBOOK:
+CLOCK: [2025-07-08 Tue 22:06]--[2025-07-08 Tue 22:07] =>  0:01
+:END:
+#+begin_src elisp :tangle yes
+  (defalias 'two-random-array-value (apply-partially #'n-random-values-from-array 2))
+  (defalias 'random-con-from-array (-compose #'-applify-cons #'two-random-array-value))
 #+end_src
 
 *** DONE random-integer-range
@@ -320,10 +350,27 @@ CLOCK: [2025-06-22 Sun 22:24]--[2025-06-22 Sun 22:34] =>  0:10
   	   (math-random-three-digit-number)))  
 #+end_src
 
+*** DONE divide-by-random-value
+CLOSED: [2025-07-07 Mon 19:17]
+:LOGBOOK:
+CLOCK: [2025-07-07 Mon 19:13]--[2025-07-07 Mon 19:16] =>  0:03
+CLOCK: [2025-07-07 Mon 17:18]--[2025-07-07 Mon 17:45] =>  0:27
+CLOCK: [2025-07-07 Mon 17:18]--[2025-07-07 Mon 17:18] =>  0:00
+:END:
+#+begin_src elisp :tangle yes
+  (defalias 'divide-by-random-value (funcall (-compose #'-applify-rpartial (apply-partially #'list #'/) (-compose #'float #'random-integer-in-range-255))))  
+#+end_src
+*** DONE divide-array-values-by-random-value
+CLOSED: [2025-07-07 Mon 19:27]
+:LOGBOOK:
+CLOCK: [2025-07-07 Mon 19:17]--[2025-07-07 Mon 19:18] =>  0:01
+:END:
+#+begin_src elisp :tangle yes
+  (defalias 'divide-array-values-by-random-value (apply-partially #'mapcar #'divide-by-random-value))
+#+end_src
 
-
-
-*** TODO generate-test-data
+*** DONE generate-test-data
+CLOSED: [2025-07-08 Tue 23:41]
 :LOGBOOK:
 CLOCK: [2025-07-02 Wed 06:28]--[2025-07-02 Wed 06:39] =>  0:11
 CLOCK: [2025-07-02 Wed 05:16]--[2025-07-02 Wed 05:42] =>  0:26
@@ -342,13 +389,21 @@ CLOSED: [2025-07-02 Wed 06:39]
     (let* ((min-items (or min-length 1))
   	 (max-items (or max-length 255))
   	 (item-func (or item-transformer #'identity))
-  	 (list-func (or list-transformer #'identity))
+  	 (list-func (or list-transformer #'shuffle))
   	 (range-length (random-integer-in-range (list min-items max-items)))
   	 (list-items (random-integer-list range-length)))
       (funcall (-on list-func (apply-partially #'mapcar item-func)) list-items)))
 #+end_src
-**** TODO aliases for generate-test-data
+**** DONE aliases for generate-test-data
+CLOSED: [2025-07-08 Tue 23:41]
 :LOGBOOK:
+CLOCK: [2025-07-08 Tue 23:36]--[2025-07-08 Tue 23:41] =>  0:05
+CLOCK: [2025-07-08 Tue 23:36]--[2025-07-08 Tue 23:36] =>  0:00
+CLOCK: [2025-07-08 Tue 22:07]--[2025-07-08 Tue 22:19] =>  0:12
+CLOCK: [2025-07-08 Tue 22:03]--[2025-07-08 Tue 22:06] =>  0:03
+CLOCK: [2025-07-07 Mon 22:17]--[2025-07-07 Mon 22:19] =>  0:02
+CLOCK: [2025-07-07 Mon 22:07]--[2025-07-07 Mon 22:13] =>  0:06
+CLOCK: [2025-07-07 Mon 19:27]--[2025-07-07 Mon 19:29] =>  0:02
 CLOCK: [2025-07-04 Fri 06:10]--[2025-07-04 Fri 06:17] =>  0:07
 CLOCK: [2025-07-04 Fri 03:30]--[2025-07-04 Fri 03:30] =>  0:00
 CLOCK: [2025-07-03 Thu 16:38]--[2025-07-03 Thu 17:15] =>  0:37
@@ -357,16 +412,21 @@ CLOCK: [2025-07-03 Thu 06:21]--[2025-07-03 Thu 06:33] =>  0:12
 :END:
 #+begin_src elisp :tangle yes
 
-
+  (defalias 'generate-test-list-of-floats-between-zero-and-one (apply-partially #'generate-test-data :list-transformer (-compose #'divide-array-values-by-max-array-value #'shuffle)))
+  (defalias 'generate-test-list-of-floats (apply-partially #'generate-test-data :list-transformer (-compose #'divide-array-values-by-random-value #'shuffle)))
   (defalias 'generate-test-list-of-strings (apply-partially #'generate-test-data :item-transformer #'char-to-string))
-  (defalias 'generate-test-list-of-floats-between-zero-and-one (apply-partially #'generate-test-data :list-transformer #'divide-array-values-by-max-array-value))
-  (defalias 'generate-test-list-of-floats (apply-partially #'generate-test-data :list-transformer #'divide-array-values-by-max-array-value))
 
-  (defalias 'generate-test-string (apply-partially #'generate-test-data :item-transformer #'identity :list-transformer #'seq--into-string))
+  (defalias 'generate-test-string (apply-partially #'generate-test-data :item-transformer #'identity :list-transformer (-compose #'seq--into-string #'shuffle)))
+  
 
-  (defalias 'generate-test-vector-of-integers (apply-partially #'generate-test-data :list-transformer #'seq--into-vector))
+  (defalias 'generate-test-vector-of-integers (apply-partially #'generate-test-data :list-transformer (-compose #'seq--into-vector #'shuffle)))
 
   (defalias 'generate-test-alist-of-integers (apply-partially #'generate-test-data :list-transformer (-compose #'-applify-zip (-juxt #'reverse #'shuffle))))
+
+
+  (defalias 'generate-test-con-of-integers (apply-partially #'generate-test-data :min-length 2 :list-transformer #'random-con-from-array))  
+  (defalias 'generate-test-con-of-floats (apply-partially #'generate-test-data :min-length 2 :list-transformer (-compose #'random-con-from-array #'divide-array-values-by-max-array-value)))
+  (defalias 'generate-test-con-of-strings (apply-partially #'generate-test-data :min-length 2 :item-transformer #'char-to-string :list-transformer #'random-con-from-array))
 
 #+end_src
 
@@ -376,6 +436,7 @@ CLOCK: [2025-07-03 Thu 06:21]--[2025-07-03 Thu 06:33] =>  0:12
 
 ** TODO generics for quickcheck
 :LOGBOOK:
+CLOCK: [2025-07-11 Fri 04:11]
 CLOCK: [2025-06-22 Sun 18:12]--[2025-06-22 Sun 18:40] =>  0:28
 CLOCK: [2025-06-22 Sun 16:04]--[2025-06-22 Sun 16:40] =>  0:36
 CLOCK: [2025-06-22 Sun 14:18]--[2025-06-22 Sun 14:44] =>  0:26
@@ -384,13 +445,14 @@ CLOCK: [2025-06-21 Sat 12:14]--[2025-06-21 Sat 12:40] =>  0:26
 CLOCK: [2025-06-22 Sun 22:34]--[2025-06-22 Sun 23:17] =>  0:43
 :END:
 *** TODO Semigroup
+:LOGBOOK:
+CLOCK: [2025-07-08 Tue 23:42]--[2025-07-08 Tue 23:52] =>  0:10
+:END:
 **** Laws to test 
-***** For <>
-****** [Associativity] @x '<>' (y '<>' z) = (x '<>' y) '<>' z@
 ***** For sconcat 
 ******  [Unit]: @'sconcat' ('pure' x) = x@
 ****** TODO [Multiplication]: @'sconcat' ('join' xss) = 'sconcat' ('fmap' 'sconcat' xss)@
-
+**** TODO stimes
 
 *** TODO Monoid
 *** TODO Functor
@@ -406,7 +468,7 @@ CLOCK: [2025-07-02 Wed 08:47]--[2025-07-02 Wed 09:04] =>  0:17
 ***** DONE base fmap
 CLOSED: [2025-07-02 Wed 09:00]
 #+begin_src emacs-lisp :tangle yes
-  (cl-defgeneric fmap (function functor))
+
   
 #+end_src
 ***** DONE fmap for lists
@@ -676,7 +738,8 @@ CLOCK: [2025-06-11 Wed 09:24]--[2025-06-11 Wed 09:30] =>  0:06
 
 
 ** Long Term
-**** Test result via evaluation of org-mode
+*** eldev
+*** Test result via evaluation of org-mode
 ** Cancelled 
 *** CANCELLED Test and write qc-gen
 CLOSED: [2025-06-09 Mon 02:44]

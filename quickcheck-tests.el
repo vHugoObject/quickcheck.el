@@ -70,6 +70,12 @@
 	(should (= actual-shuffled-list-length test-list-length))
 	(should-not (seq-difference actual-shuffled-list test-list))))
 
+(ert-deftest-n-times n-random-values-from-array 100
+  (-let* (((test-count test-list) (funcall (-compose (-juxt (-compose #'random-integer-in-range (apply-partially #'list 0)  #'seq-length) #'identity)
+						   #'random-integer-list-in-range-255)))
+	 ((actual-random-values actual-length) (funcall (-compose (-juxt #'identity #'seq-length) #'n-random-values-from-array) test-count test-list)))
+    (should (eql actual-length test-count))))
+
 (ert-deftest-n-times random-array-value 100
   (-let* (((actual-value test-array) (funcall (-compose (-juxt #'random-array-value #'identity) #'random-integer-list-in-range-255))))
     (should (memq actual-value test-array))))
@@ -94,54 +100,78 @@
   (-let* (((actual-list expected-list-length) (funcall (-juxt #'divide-array-values-by-max-array-value #'seq-length)  (random-integer-list-in-range-255))))
     (should (eql (seq-count-between-zero-and-one actual-list) expected-list-length))))
 
+(ert-deftest-n-times divide-by-random-value 100
+  (-let* (((actual-result actual-input-value) (funcall (-compose (-juxt #'divide-by-random-value #'identity) #'random-integer-in-range-255))))
+    (should (floatp actual-result))
+    (should (less-than-or-equal actual-result actual-input-value))))
+
 (ert-deftest-n-times divide-array-values-by-random-array-value 100
-  (-let* (((actual-list expected-list-length) (funcall (-juxt #'divide-array-values-by-random-array-value #'seq-length)  (random-integer-list-in-range-255))))
+  (-let* (((actual-list expected-list-length) (funcall (-juxt #'divide-array-values-by-random-value #'seq-length)  (random-integer-list-in-range-255))))
     (should (eql (seq-count-floats actual-list) expected-list-length))))
 
 (ert-deftest-n-times generate-test-data-for-list-of-integers 100
-    (let* ((actual-list (generate-test-data :min-length 1 :max-length 255))
-	   (actual-integer-count (seq-count-integers actual-list)))
-      (should (equal actual-integer-count (seq-length actual-list)))
+    (-let* (((actual-integer-count actual-list-length actual-list)
+	     (funcall (-compose (-juxt #'seq-count-integers #'seq-length #'identity) #'generate-test-data) :min-length 1 :max-length 255)))
+      (should (eql actual-integer-count actual-list-length))
       (should (between-one-and-255 actual-integer-count))))
 
 (ert-deftest-n-times generate-test-data-for-list-of-floats-1 100
-    (let* ((actual-list (generate-test-list-of-floats-between-zero-and-one))  	   
-	   (actual-float-count (seq-count-between-zero-and-one actual-list)))
-      (should (eql actual-float-count (seq-length actual-list)))
-      (should (between-one-and-255 actual-float-count))))
+  (-let* (((actual-floats-count actual-list-length actual-list)
+	     (funcall (-compose (-juxt #'seq-count-floats #'seq-length #'identity) #'generate-test-list-of-floats-between-zero-and-one))))
+      (should (eql actual-floats-count actual-list-length))
+      (should (between-one-and-255 actual-floats-count))))
 
-(ert-deftest-n-times generate-test-data-for-list-of-floats-2 0
-    (-let* (((actual-float-count test-list-length)
+(ert-deftest-n-times generate-test-data-for-list-of-floats-2 100
+    (-let* (((actual-floats-count test-list-length)
 	     (funcall (-compose (-juxt #'seq-count-floats #'seq-length) #'generate-test-list-of-floats))))
-      (should (eql actual-float-count test-list-length))))
+      (should (eql actual-floats-count test-list-length))
+      (should (between-one-and-255 actual-floats-count))))
 
 (ert-deftest-n-times generate-test-data-for-list-of-strings 100
-    (let* ((actual-list (generate-test-list-of-strings))
-	   (actual-string-count (seq-count-strings actual-list)))
-      (should (equal actual-string-count (seq-length actual-list)))
-      (should (between-one-and-255 actual-string-count))))
+    (-let* (((actual-strings-count test-list-length)
+	     (funcall (-compose (-juxt #'seq-count-strings #'seq-length) #'generate-test-list-of-strings))))
+      (should (eql actual-strings-count test-list-length))
+      (should (between-one-and-255 actual-strings-count))))
 
 (ert-deftest-n-times generate-test-data-for-single-string 100
-    (let* ((actual-string (generate-test-string))
+  (let* ((actual-string (generate-test-string))
 	   (actual-string-length (seq-length actual-string)))
-      (should (stringp actual-string))
+    (should (stringp actual-string))
     (should (between-one-and-255 actual-string-length))))
 
 (ert-deftest-n-times generate-test-data-for-vector-of-integers 100
-    (let* ((actual-vector (generate-test-vector-of-integers))
-	   (actual-integer-count (seq-count-integers actual-vector)))
-      (should (vectorp actual-vector))
-      (should (equal actual-integer-count (seq-length actual-vector)))
-      (should (between-one-and-255 actual-integer-count))))
+  (-let* (((actual-integers-count test-vector-length actual-vector)
+	     (funcall (-compose (-juxt #'seq-count-integers #'seq-length #'identity) #'generate-test-vector-of-integers))))
+    (should (vectorp actual-vector))
+    (should (eql actual-integers-count test-vector-length))
+    (should (between-one-and-255 actual-integers-count))))
 
 (ert-deftest-n-times generate-test-data-for-alist 100
-    (let* ((actual-alist (generate-test-alist-of-integers))
-	   (actual-cons-count (seq-count-cons actual-alist)))
-      (should (equal actual-cons-count (seq-length actual-alist)))
+    (-let* (((actual-cons-count actual-alist-length actual-alist) (funcall (-compose (-juxt #'seq-count-cons #'seq-length #'identity) #'generate-test-alist-of-integers))))
+      (should (equal actual-cons-count actual-alist-length))
       (should (between-one-and-255 actual-cons-count))))
 
-(ert-deftest-n-times generate-test-data-for-con 0
-  (should (consp (generate-test-con))))
+(ert-deftest-n-times generate-test-data-for-con-0 100
+  (-let (((actual-con actual-car actual-cdr)(funcall (-compose (-juxt #'identity #'car #'cdr) #'generate-test-con-of-integers))))
+	 (should (consp actual-con))
+	 (should (integerp actual-car))
+	 (should (integerp actual-cdr))))
+
+(ert-deftest-n-times generate-test-data-for-con-1 100
+  (-let (((actual-con actual-car actual-cdr)(funcall (-compose (-juxt #'identity #'car #'cdr) #'generate-test-con-of-floats))))
+	 (should (consp actual-con))
+	 (should (floatp actual-car))
+	 (should (floatp actual-cdr))))
+
+(ert-deftest-n-times generate-test-data-for-con-2 100
+  (-let (((actual-con actual-car actual-cdr)(funcall (-compose (-juxt #'identity #'car #'cdr) #'generate-test-con-of-strings))))
+	 (should (consp actual-con))
+	 (should (stringp actual-car))
+	 (should (stringp actual-cdr))))
+
+(ert-deftest-n-times concat-string 100
+    (-let* ((test-string-one test-string-two) (generate-test-string))
+      ()))
 
 (ert-deftest-n-times fmap-for-list 0
   (let* ((test-list (generate-test-data))

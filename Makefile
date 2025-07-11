@@ -2,7 +2,8 @@ EMACS ?= emacs
 SELECTOR ?= (tag :org)
 ERT = "(ert-run-tests-batch-and-exit)"
 ERTWITHSELECTOR = "(ert-run-tests-batch-and-exit '$(SELECTOR))"
-QUICKCHECK = ~/.emacs.d/personal-packages/quickcheck/quickcheck
+QUICKCHECK = ~/Documents/quickcheck/quickcheck
+QUICKCHECKTESTS = ~/Documents/quickcheck/quickcheck-tests
 
 # dependencies
 DASH = ~/.emacs.d/straight/repos/dash.el/dash.el
