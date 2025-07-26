@@ -1,0 +1,41 @@
+#    -*- mode: org -*-
+
+
+Archived entries from file /home/earl/Documents/quickcheck/quickcheck.org
+
+
+* CANCELLED partial-partial
+:PROPERTIES:
+:ARCHIVE_TIME: 2025-07-19 Sat 15:07
+:ARCHIVE_FILE: ~/Documents/quickcheck/quickcheck.org
+:ARCHIVE_OLPATH: quickcheck.el/Utilities/extensions
+:ARCHIVE_CATEGORY: quickcheck
+:ARCHIVE_TODO: CANCELLED
+:END:
+:LOGBOOK:
+CLOCK: [2025-07-19 Sat 14:56]--[2025-07-19 Sat 14:57] =>  0:01
+:END:
+#+begin_src elisp :tangle yes
+#+end_src
+
+
+* DONE seq-max-plus-one-and-random-chunk-length
+CLOSED: [2025-07-25 Fri 00:34]
+:PROPERTIES:
+:ARCHIVE_TIME: 2025-07-25 Fri 00:35
+:ARCHIVE_FILE: ~/Documents/quickcheck/quickcheck.org
+:ARCHIVE_OLPATH: quickcheck.el/Utilities/seq/aliases
+:ARCHIVE_CATEGORY: quickcheck
+:ARCHIVE_TODO: DONE
+:END:
+:LOGBOOK:
+:END:
+#+begin_src elisp :tangle yes
+
+#+end_src
+
+
+#+RESULTS:
+| 1 | 2 | 3 |
+| 5 | 6 | 7 |
+
