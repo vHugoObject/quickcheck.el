@@ -6,8 +6,6 @@
         (require 'dash)
         (require 's)
 
-  (let ((parent-directory (file-name-directory (or load-file-name buffer-file-name))))
-    (file-name-concat parent-directory "quickcheck"))
   (require 'quickcheck)
 
 (ert-deftest-n-times convert-calc-value-into-lisp 100
@@ -378,3 +376,6 @@
 	 (actual-string (<$ test-constant test-string)))
      (should (stringp actual-string))
     (should (eql (seq-count (apply-partially eql test-constant)) expected-list-length))))
+
+(provide 'quickcheck-tests)
+;;; quickcheck-tests.el ends here

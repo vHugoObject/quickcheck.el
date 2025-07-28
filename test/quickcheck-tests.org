@@ -9,11 +9,6 @@ CLOCK: [2025-07-19 Sat 13:53]--[2025-07-19 Sat 14:02] =>  0:09
 :LOGBOOK:
 CLOCK: [2025-07-25 Fri 06:49]--[2025-07-25 Fri 06:50] =>  0:01
 :END:
-*** DONE add s to imports 
-CLOSED: [2025-07-25 Fri 06:51]
-:LOGBOOK:
-CLOCK: [2025-07-25 Fri 06:50]--[2025-07-25 Fri 06:51] =>  0:01
-:END:
 #+begin_src elisp :tangle yes
   ;;; quickcheck.el --- Quickcheck clone       -*- lexical-binding: t; -*-            
           (require 'ert)
@@ -23,14 +18,8 @@ CLOCK: [2025-07-25 Fri 06:50]--[2025-07-25 Fri 06:51] =>  0:01
           (require 'dash)
           (require 's)
 
-    (let ((parent-directory (file-name-directory (or load-file-name buffer-file-name))))
-      (file-name-concat parent-directory "quickcheck"))
     (require 'quickcheck)
-#+END_SRC
-
-#+RESULTS:
-: quickcheck
-
+#+end_src
 ** Utilities
 *** calc
 **** extensions
@@ -959,6 +948,10 @@ CLOCK: [2025-07-21 Mon 20:36]--[2025-07-21 Mon 20:41] =>  0:05
 
 #+END_SRC
 
-
+** End
+#+begin_src elisp :tangle yes
+(provide 'quickcheck-tests)
+;;; quickcheck-tests.el ends here
+#+end_src
 
 

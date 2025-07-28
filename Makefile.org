@@ -1,3 +1,5 @@
+#+auto_tangle: t
+#+begin_src makefile :tangle Makefile
 export EMACS ?= $(shell command -v emacs 2>/dev/null)
 CASK_DIR := $(shell cask package-directory)
 
@@ -17,3 +19,4 @@ compile: cask
 .PHONY: test
 test: compile
 	cask emacs --batch -L . -L test -l quickcheck-tests -f ert-run-tests-batch
+#+end_src

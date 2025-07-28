@@ -7,3 +7,9 @@
 
 **/.cache
 **/eln-cache
+
+
+# Ignore archive files
+**/*_archive
+
+/.cask

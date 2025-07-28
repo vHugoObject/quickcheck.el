@@ -1,8 +1,0 @@
-#+auto_tangle: t
-* .dir-locals.el
-:LOGBOOK:
-CLOCK: [2025-07-25 Fri 08:37]
-:END:
-#+begin_src elisp :tangle yes
-  ((nil . ((case-fold-search . nil))))
-#+end_src
