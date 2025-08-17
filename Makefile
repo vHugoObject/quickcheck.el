@@ -14,6 +14,14 @@ compile: cask
 	  -f batch-byte-compile $$(cask files); \
 	  (ret=$$? ; cask clean-elc && exit $$ret)
 
-.PHONY: test
-test: compile
-	cask emacs --batch -L . -L test -l quickcheck-tests -f ert-run-tests-batch
+generics-tests: compile
+	cask emacs --batch -L . -L test -l quickcheck-generics-tests -f ert-run-tests-batch
+
+general-utilities-tests: compile
+	cask emacs --batch -L . -L test -l quickcheck-general-utilities-tests -f ert-run-tests-batch    
+
+testing-utilities-tests: compile
+	cask emacs --batch -L . -L test -l quickcheck-testing-utilities-tests -f ert-run-tests-batch
+
+seq-extras-tests: compile
+	cask emacs --batch -L . -L test -l seq-extras-tests -f ert-run-tests-batch

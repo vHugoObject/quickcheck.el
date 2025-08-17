@@ -12,4 +12,11 @@
 # Ignore archive files
 **/*_archive
 
+
 /.cask
+
+
+# remove org files from tracking
+test/*org
+quickcheck.org
+Makefile.org

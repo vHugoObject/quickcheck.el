@@ -29,16 +29,24 @@
 
 ;;; Code:
 
+(require 'ert)
 (require 'eieio)
 (require 'cl-lib)
 (require 'calc-comb)
 (require 'range)
+(require 'map)
 (require 'dash)
 (require 's)
+(require 'macroexp)
+(require 'gv)
 
+(defconst TENRANGE
+  (list 1 25)    
+  "default random number range")  
 (defconst DEFAULTRANDOMNUMBERRANGE
-  (list 1 255)    
-  "default random number range")
+  (list 1 255))    
+(defconst FIVEHUNDREDRANGE
+  (list 1 500))
 (defconst THOUSAND
   (float 1000)
   "Float creator")
@@ -55,6 +63,8 @@
 (defalias 'greater-than #'>)
 (defalias 'greater-than-or-equal #'>=)
 (defalias 'greater-than-or-equal-one (-rpartial #'>= 1))
+(defalias 'greater-than-or-equal-zero (-rpartial #'>= 0))
+(defalias 'greater-than-zero (-rpartial #'> 0))  
 (defalias 'equal-zero (apply-partially #'eql 0))
 (defalias 'equal-one (apply-partially #'eql 0))
 
@@ -76,17 +86,27 @@
 
 (defalias '-applify-subtract (-applify #'-))
 (defalias '-applify-iterate-plus-one  (-applify #'-iterate-plus-one))
-  
+(defalias '-applify-divide (-applify #'/))
+
+
 (defalias '-applify-zip  (-applify #'-zip))
 (defalias '-applify-cons  (-applify #'cons))
+(defalias '-applify-concat  (-applify #'concat))
+(defalias '-applify-append (-applify #'append))
 (defalias '-applify-mapcar  (-applify #'mapcar))
-(defalias '-applify-divide (-applify #'/))
 (defalias '-applify-cl-subsetp (-applify #'cl-subsetp))
+(defalias '-applify-seq-split (-applify #'seq-split))
+(defalias '-applify-seq-take (-applify #'seq-take))
+(defalias '-applify-vector (-applify #'vector))
 
+(defalias 'seq-take-flipped (-flip #'seq-take))
+(defalias '-applify-seq-take-flipped (-applify #'seq-take-flipped))
 
 (defalias 'divide-by-THOUSAND   (-rpartial #'/ THOUSAND))
 (defalias 'divide-array-values-by-max-array-value (-compose #'-applify-mapcar (-juxt (-compose #'-applify-rpartial (apply-partially #'list #'/) #'float #'1+ #'-max) #'identity)))  
+
 (defalias 'identity-and-seq-length (-juxt #'identity #'seq-length))
+(defalias '-duplicate (-juxt #'identity #'identity))
 
 (defun times (function n)
   (cdr (-iterate function nil (1+ n))))
@@ -100,6 +120,7 @@
 (defalias 'between-one-and-255 (apply-partially #'range-member-exclusive-p (list 1 255)))
 (defalias 'between-zero-and-one (apply-partially #'range-member-exclusive-p (list 0 1)))
 (defalias 'between-one-and-? (-compose #'-applify-partial (-partial #'list #'range-member-exclusive-p) (-partial #'list 1)))
+(defalias 'between-zero-and-? (-compose #'-applify-partial (-partial #'list #'range-member-exclusive-p) (-partial #'list 0)))
 
 (cl-defun non-zero-bounded-modular-addition ((range-min range-max) increase current-number)
   (when (greater-than-or-equal range-min range-max)
@@ -128,50 +149,139 @@
 (defun random-float-between-0-and-1 ()    
   (funcall (-compose #'convert-calc-value-into-lisp #'math-random-float)))
 
-(cl-defun random-integer-in-range ((min max))
+(cl-defun random-nat-number-in-range ((min max))
   (if (eql min max)
       min
     (funcall (-compose (apply-partially #'scale-float-to-range (list min max))  #'random-float-between-0-and-1))))
 
-(defalias 'random-integer-in-range-255 (apply-partially #'random-integer-in-range DEFAULTRANDOMNUMBERRANGE))
+(defalias 'random-nat-number-in-range-10 (apply-partially #'random-nat-number-in-range TENRANGE))
 
-(defalias 'random-integer-in-range-from-one (-compose #'random-integer-in-range (apply-partially #'list 1)))
+(defalias 'random-nat-number-in-range-255 (apply-partially #'random-nat-number-in-range DEFAULTRANDOMNUMBERRANGE))
+
+(defalias 'random-nat-number-in-range-500 (apply-partially #'random-nat-number-in-range FIVEHUNDREDRANGE))
+
+(defalias 'random-nat-number-in-range-from-one (-compose #'random-nat-number-in-range (apply-partially #'list 1)))
+
+(defalias 'random-nat-number-in-range-from-zero (-compose #'random-nat-number-in-range (apply-partially #'list 0)))
 
 (defalias 'random-con-from-array (-compose #'-applify-cons #'seq-two-random-values))
 
-(defun random-integer-list (length)    
+(defun random-nat-number-list (length)    
   (funcall (-compose #'seq-shuffle #'-iterate-plus-one) (math-random-three-digit-number) length))  
-(defalias 'random-integer-list-in-range-255 (-compose #'random-integer-list #'random-integer-in-range-255))
+(defalias 'random-nat-number-list-in-range-255 (-compose #'random-nat-number-list #'random-nat-number-in-range-255))
 
-(defun random-integer-range (length)    
+(defun random-nat-number-range (length)    
   (funcall (-juxt #'identity (apply-partially #'+ length))
 	   (math-random-three-digit-number)))
 
-(defalias 'divide-by-random-value (funcall (-compose #'-applify-rpartial (apply-partially #'list #'/) (-compose #'float #'random-integer-in-range-255))))
+(defalias 'divide-by-random-value (funcall (-compose #'-applify-rpartial (apply-partially #'list #'/) (-compose #'float #'random-nat-number-in-range-255))))
 
 (defalias 'divide-array-values-by-random-value (apply-partially #'mapcar #'divide-by-random-value))
 
-(defalias 'seq-count-integers (apply-partially #'seq-count #'integerp))
+(defalias 'call-random-function (-compose #'funcall #'nested-seq-one-random-value))
+
+(defun call-random-function-n-times (calls list)    
+  (funcall (-compose (-rpartial #'times-no-args calls) #'nested-seq-one-random-value) list))
+
+(defalias 'seq-count-nat-numbers (apply-partially #'seq-count #'natnump))
 (defalias 'seq-count-floats (apply-partially #'seq-count #'floatp))
 (defalias 'seq-count-strings (apply-partially #'seq-count #'stringp))  
 (defalias 'seq-count-cons (apply-partially #'seq-count #'consp))
-
 (defalias 'seq-count-between-zero-and-one (apply-partially #'seq-count #'between-zero-and-one))
 (defalias 'seq-count-greater-than-or-equal-one (apply-partially #'seq-count #'greater-than-or-equal-one))
 
 (defalias 'seq-map-add-one (apply-partially #'seq-map #'1+))
 (defalias 'seq-map-length (apply-partially #'seq-map #'seq-length))
+(defalias 'seq-map-seq--into-list (apply-partially #'seq-map #'seq--into-list))
+(defalias 'seq-map-char-to-string (apply-partially #'seq-map #'char-to-string))
+(defalias 'seq-map-cl-constantly (apply-partially #'seq-map #'cl-constantly))
+
 (defalias 'seq-sum-map-length (-compose #'-sum #'seq-map-length))
 
-(defalias 'seq-map-seq--into-list (apply-partially #'seq-map #'seq--into-list))
 (defalias 'seq-max-plus-one (-compose #'1+ #'seq-max))
 (defalias 'seq-max-plus-one-and-random-chunk-length (-juxt #'seq-max-plus-one  #'seq-random-chunk-length))
+
+(defalias 'seq-every-p-seq (apply-partially #'seq-every-p #'seqp))
+(defalias 'seq-every-p-nat-number (apply-partially #'seq-every-p #'natnump))
+(defalias 'seq-every-p-float (apply-partially #'seq-every-p #'floatp))
+(defalias 'seq-every-p-string (apply-partially #'seq-every-p #'stringp))
+(defalias 'seq-every-p-list (apply-partially #'seq-every-p #'listp))
+(defalias 'seq-every-p-proper-list (apply-partially #'seq-every-p #'proper-list-p))
+(defalias 'seq-every-p-vector (apply-partially #'seq-every-p #'vectorp))
+(defalias 'seq-every-p-con (apply-partially #'seq-every-p #'-cons-pair-p))
+(defalias 'seq-every-p-between-zero-and-one (apply-partially #'seq-every-p #'between-zero-and-one))
+
+(defalias 'seq-take-one (-rpartial #'seq-take 1))
+(defalias 'seq-take-two (-rpartial #'seq-take 2))
+(defalias 'seq-take-three (-rpartial #'seq-take 3))
+
+(defun seq-type (seq)
+  (pcase (cl-type-of seq)
+    ('vector 'vector)
+    ('string 'string)
+    ('cons 'list)
+    (type (error "Not a sequence: %S" type))))
+
+(defun seq-concat (&rest seqs)
+  (let* ((type (funcall (-compose #'seq-type #'seq-first) seqs)))
+    (funcall (-applify (apply-partially #'seq-concatenate type)) seqs)))
+(defalias '-applify-seq-concat (-applify #'seq-concat))
 
 (defun seq-take-right (n seq)    
     (funcall (-compose (-rpartial #'seq-take n) #'seq-reverse) seq))
 
 (defun seq-take-last (n seq)    
   (funcall (-compose (apply-partially #'seq-subseq seq)  (-applify #'-)  #'nreverse (apply-partially #'list n) #'seq-length) seq))
+
+(defalias 'seq-last (-compose #'seq-first (apply-partially #'seq-take-last 1)))
+
+(cl-defgeneric seq-cons (a b)
+  (cons a b))
+
+(cl-defmethod seq-cons (a (b vector))
+  (funcall (-compose (-rpartial #'vconcat b) #'vector) a))
+
+(cl-defmethod seq-cons (a (b string))
+  (funcall (-compose (-rpartial #'concat b) #'char-to-string) a))
+
+(cl-defgeneric seq-snoc (a b)
+  (funcall (-compose (-partial #'append b) #'list) a))
+
+
+
+(cl-defmethod seq-snoc (a (b vector))
+  (funcall (-compose (-partial #'vconcat b) #'vector) a))
+
+(cl-defmethod seq-snoc (a (b string))
+  (funcall (-compose (-partial #'concat b) #'char-to-string) a))
+
+(defmacro seq-append (newelt place)
+  "Add NEWELT to the end of the seq stored in the generalized variable PLACE.
+  Based on push"
+  (declare (debug (form gv-place)))
+  (macroexp-let2 macroexp-copyable-p x newelt
+    (gv-letplace (getter setter) place
+      (funcall setter `(seq-snoc ,x ,getter)))))
+
+(defmacro seq-push (newelt place)
+  "Add NEWELT to the seq stored in the generalized variable PLACE.
+  This is just a generic version of push"
+  (declare (debug (form gv-place)))
+  (macroexp-let2 macroexp-copyable-p x newelt
+    (gv-letplace (getter setter) place
+      (funcall setter `(seq-cons ,x ,getter)))))
+
+(cl-defgeneric seq-take-infinite (n seq)
+  "When n is larger than the seq-length, we loop back around")
+
+(cl-defmethod seq-take-infinite (n (seq cons))
+  (funcall (-compose (-rpartial #'seq-take n) #'-cycle) seq))
+
+(cl-defmethod seq-take-infinite (n (seq vector))
+  (funcall (-compose #'seq--into-vector (-rpartial #'seq-take n) #'-cycle) seq))
+
+(cl-defmethod seq-take-infinite (n (seq string))
+  (funcall (-compose #'seq--into-string (-rpartial #'seq-take n) #'-cycle) seq))
 
 (cl-defgeneric seq-shuffle (seq)
   (shuffle-list seq))
@@ -182,17 +292,32 @@
 (cl-defmethod seq-shuffle ((seq string))
    (funcall (-compose #'seq--into-string #'shuffle-list #'seq--into-list) seq))
 
-(defun seq-n-random-values (count seq)
-  (funcall (-compose (-rpartial #'seq-take count) #'seq-shuffle) seq))
+(defalias 'seq-split-the-shuffle (-compose #'seq-shuffle #'seq-split))
 
-(defalias 'seq-one-random-value (apply-partially #'seq-n-random-values 1))
+(defalias 'seq-one-random-value (-compose #'seq-take-one #'seq-shuffle))
 
-(defalias 'seq-two-random-values (apply-partially #'seq-n-random-values 2))
+(defalias 'nested-seq-one-random-value (-compose #'seq-first #'seq-one-random-value))
 
-(defalias 'seq-random-chunk-length (-compose #'random-integer-in-range-from-one  #'seq-length))
+(defalias 'seq-two-random-values (-compose #'seq-take-two #'seq-shuffle))
+
+(defalias 'seq-random-chunk-length (-compose #'random-nat-number-in-range-from-one #'seq-length))
+
+(defun seq-random-chunk-of-size-n (chunk-length seq)
+  (funcall (-compose #'seq-first  #'seq-one-random-value #'seq-split) seq chunk-length))
+
+ (defalias '-applify-seq-random-chunk-of-size-n (-applify #'seq-random-chunk-of-size-n))
+
+(defalias 'seq-random-chunk (-compose #'-applify-seq-random-chunk-of-size-n (-juxt #'seq-random-chunk-length #'identity)))
+
+(defalias 'seq-random-position (-compose #'random-nat-number-in-range-from-zero #'seq-length))
+
+(defalias 'seq-split-random (-compose #'-applify-seq-split (-juxt #'identity #'seq-random-chunk-length)))
 
 (defun seq-random-values (seq)
     (funcall (-compose (-rpartial #'seq-n-random-values seq) #'seq-random-chunk-length) seq))
+
+(defun seq-n-random-values (count seq)
+  (funcall (-compose (-rpartial #'seq-take count) #'seq-shuffle) seq))
 
 (cl-defgeneric seq-random-iterate-from-max (seq)    
   (funcall (-compose #'-applify-iterate-plus-one #'seq-max-plus-one-and-random-chunk-length) seq))
@@ -212,11 +337,64 @@
 (cl-defmethod seq-subsetp ((seq-one string) seq-two)
   (s-contains? seq-one seq-two nil))
 
-(defun seq-random-chunk-of-size-n (chunk-length seq)
-  (funcall (-compose #'-first-item  #'seq-one-random-value #'seq-split) seq chunk-length))
- (defalias '-applify-seq-random-chunk-of-size-n (-applify #'seq-random-chunk-of-size-n))
+(defun seq-item-at-position (position seq)
+  (funcall (-compose #'seq-first (apply-partially #'seq-subseq seq position) #'1+) position))
 
-(defalias 'seq-random-chunk (-compose #'-applify-seq-random-chunk-of-size-n (-juxt #'seq-random-chunk-length #'identity)))
+(defun seq-butlast (seq)
+  (funcall (-compose (apply-partially #'seq-subseq seq 0) #'1- #'seq-length) seq))
+
+(defun seq-rotate (rotations seq)
+  "based on -rotate"
+  (cond
+    ((eql (seq-length seq) 0) (seq))
+    ((eql rotations 0) (seq))
+    ((-let (((seq-head seq-tail)
+	    (funcall (-compose (-juxt (-partial #'seq-subseq seq) (-partial #'seq-take seq)) #'-applify-subtract (-juxt #'identity (-partial #'mod rotations)) #'seq-length) seq)))
+       (funcall (-compose (-rpartial #'seq-concatenate seq-head seq-tail) #'seq-type) seq)))))
+
+(defalias 'seq-rotate-flipped (-flip #'seq-rotate))
+(defalias '-applify-seq-rotate-flipped (-applify #'seq-rotate-flipped))
+(defalias '-applify-seq-rotate (-applify #'seq-rotate))
+
+(defun seq-subseq-infinite (start end seq)
+  "We use seq-take-infinite so that we loop around"
+  (when (or (cl-minusp start) (cl-minusp end))
+    (error "Positions can not be negative"))
+  (when (greater-than start end)
+    (error "Start can not be greater than end"))
+  (let* ((length (seq-length seq)))
+    (if (greater-than end length)
+	(funcall (-compose (-rpartial #'seq-subseq start end) (-rpartial #'seq-take-infinite seq) (-partial #'+ length) (-partial #'- end)) length)
+      (seq-subseq seq start end))))
+
+(cl-defgeneric seq-split-infinite (chunk-size seq)
+  "For strings and list"
+  (let ((chunks '()))
+    (funcall (-compose (-rpartial #'-dotimes (lambda (index) (seq-append (seq-subseq-infinite (* index chunk-size) (* (1+ index) chunk-size) seq) chunks)))
+		       (-rpartial #'ceiling chunk-size)
+		       #'seq-length)
+	     seq)
+    chunks))
+
+(cl-defmethod seq-split-infinite (chunk-size (seq vector))
+  (let ((chunks []))
+    (funcall (-compose (-rpartial #'-dotimes (lambda (index) (seq-append (seq-subseq-infinite (* index chunk-size) (* (1+ index) chunk-size) seq) chunks)))
+		       (-rpartial #'ceiling chunk-size)
+		       #'seq-length)
+	     seq)
+    chunks))
+
+(defun seq-n-random-chunks-of-size-x (chunk-size chunk-count seq)
+  (funcall (-compose (apply-partially #'seq-take-infinite chunk-count) #'seq-shuffle #'seq-split-infinite) chunk-size seq))
+
+(defun seq-n-random-chunks-of-random-size (chunk-count seq)
+  (funcall (-compose (-rpartial #'seq-n-random-chunks-of-size-x chunk-count seq) #'seq-random-chunk-length) seq))
+
+
+
+(defun map-on (op keys-trans values-trans map)
+  "apply one function to map keys and one function to map values"
+   (funcall (-compose op (-juxt (-compose keys-trans #'map-keys) (-compose values-trans #'map-values))) map))
 
 ;; test-runner
 ;; needs a test
@@ -234,37 +412,82 @@
 	 (max-items (or max-length 255))
 	 (item-func (or item-transformer #'identity))
 	 (list-func (or list-transformer #'seq-shuffle))
-	 (range-length (random-integer-in-range (list min-items max-items)))
-	 (list-items (random-integer-list range-length)))
+	 (range-length (random-nat-number-in-range (list min-items max-items)))
+	 (list-items (random-nat-number-list range-length)))
     (funcall (-on list-func (apply-partially #'mapcar item-func)) list-items)))
 
-(defalias 'generate-test-list-of-integers #'generate-test-data)
-
-(defalias 'generate-test-list-of-floats-between-zero-and-one (apply-partially #'generate-test-data :list-transformer (-compose #'divide-array-values-by-max-array-value #'seq-shuffle)))
-(defalias 'generate-test-list-of-floats (apply-partially #'generate-test-data :list-transformer (-compose #'divide-array-values-by-random-value #'seq-shuffle)))
-(defalias 'generate-test-list-of-strings (apply-partially #'generate-test-data :item-transformer #'char-to-string))
+(defalias 'generate-test-list-of-nat-numbers (apply-partially #'generate-test-data :min-length 2))
+(defalias 'generate-test-list-of-floats-between-zero-and-one (apply-partially #'generate-test-data :min-length 2 :list-transformer (-compose #'divide-array-values-by-max-array-value #'seq-shuffle)))
+(defalias 'generate-test-list-of-floats (apply-partially #'generate-test-data :min-length 2 :list-transformer (-compose #'divide-array-values-by-random-value #'seq-shuffle)))
+(defalias 'generate-test-list-of-strings (apply-partially #'generate-test-data :min-length 2 :item-transformer #'char-to-string :min-length 2))
+(defalias 'generate-test-list-of-lists-nat-numbers (apply-partially #'generate-test-data :min-length 2 :list-transformer #'seq-split-random))
+(defconst list-generators
+  (list #'generate-test-list-of-nat-numbers
+	#'generate-test-list-of-floats-between-zero-and-one
+	#'generate-test-list-of-floats
+	#'generate-test-list-of-lists-nat-numbers))
 
 (defalias 'generate-test-string (apply-partially #'generate-test-data :item-transformer #'identity :min-length 2 :list-transformer (-compose #'seq--into-string #'seq-shuffle)))
 
+(defalias 'generate-test-vector-of-nat-numbers (apply-partially #'generate-test-data :list-transformer (-compose #'seq--into-vector #'seq-shuffle)))
 
-(defalias 'generate-test-vector-of-integers (apply-partially #'generate-test-data :list-transformer (-compose #'seq--into-vector #'seq-shuffle)))
+(defalias 'generate-test-alist-of-nat-numbers (apply-partially #'generate-test-data :list-transformer (-compose #'-applify-zip (-juxt #'seq-reverse #'seq-shuffle))))
+(defalias 'generate-test-alist-of-strings (apply-partially #'generate-test-data :item-transformer #'char-to-string :list-transformer (-compose #'-applify-zip (-juxt #'seq-reverse #'seq-shuffle))))
+(defalias 'generate-test-alist-of-strings-nat-number-cons (apply-partially #'generate-test-data :list-transformer (-compose #'-applify-zip (-juxt (-compose #'seq-map-char-to-string #'seq-reverse) #'seq-shuffle))))
+(defalias 'generate-test-alist-of-nat-number-strings-cons (apply-partially #'generate-test-data :list-transformer (-compose #'-applify-zip (-juxt #'seq-reverse (-compose #'seq-map-char-to-string #'seq-shuffle)))))
 
+(defalias 'generate-test-alist-of-string-vector-of-nat-numbers-cons (apply-partially #'generate-test-data :list-transformer (-compose #'-applify-zip (-juxt #'seq-reverse (-compose #'seq-map-char-to-string #'seq-shuffle)))))
 
-(defalias 'generate-test-alist-of-integers (apply-partially #'generate-test-data :list-transformer (-compose #'-applify-zip (-juxt #'reverse #'seq-shuffle))))
-
-
-(defalias 'generate-test-con-of-integers (apply-partially #'generate-test-data :min-length 2 :list-transformer #'random-con-from-array))  
+(defalias 'generate-test-con-of-nat-numbers (apply-partially #'generate-test-data :min-length 2 :list-transformer #'random-con-from-array))  
 (defalias 'generate-test-con-of-floats (apply-partially #'generate-test-data :min-length 2 :list-transformer (-compose #'random-con-from-array #'divide-array-values-by-max-array-value)))
 (defalias 'generate-test-con-of-strings (apply-partially #'generate-test-data :min-length 2 :item-transformer #'char-to-string :list-transformer #'random-con-from-array))
 
-(cl-defgeneric semigroup-concat (a b)
+(defalias 'generate-test-string-nat-number-con (apply-partially #'generate-test-data :min-length 2 :list-transformer (-compose #'-applify-cons (-juxt (-compose #'char-to-string #'-first-item) #'-second-item) #'seq-two-random-values)))
+(defalias 'generate-test-nat-number-string-con (apply-partially #'generate-test-data :min-length 2 :list-transformer (-compose #'-applify-cons (-juxt #'-first-item (-compose #'char-to-string #'-second-item)) #'seq-two-random-values)))
+(defalias 'generate-test-string-vector-of-nat-numbers-con (apply-partially #'generate-test-data :min-length 2 :list-transformer (-compose #'-applify-cons (-juxt (-compose #'char-to-string #'-first-item) (-compose #'-applify-vector #'cdr)))))
+
+(defconst seq-generators
+  (append list-generators (list #'generate-test-string #'generate-test-vector-of-nat-numbers)))
+
+(defalias 'generate-random-seq (-compose (-juxt #'identity #'seq-length #'seq-type) (apply-partially #'call-random-function seq-generators)))
+
+(defalias 'generate-n-random-seqs (-compose (-juxt #'identity #'seq-length #'seq-sum-map-length (-compose #'seq-type #'car)) (-rpartial #'call-random-function-n-times seq-generators) #'random-nat-number-in-range-10))
+
+(defun con-of-strings-p (x)
+  (pcase x
+    ((and (pred -cons-pair-p) `(,(pred stringp) . ,(pred stringp))) t)
+    (_ nil)))
+
+(defalias 'seq-every-p-cons-of-strings-p (apply-partially #'seq-every-p #'con-of-strings-p))
+
+(cl-defgeneric join (a b))
+
+(cl-defmethod join ((a string) b)
   (concat a b))
 
-(cl-defmethod semigroup-concat ((a list) b)
-  (append a b))
+(cl-defmethod join ((a cons) b)
+  (pcase (list a b)
+    ((and (pred seq-every-p-cons-of-strings-p) two-cons)
+     (map-on #'-applify-cons #'-applify-concat #'-applify-concat two-cons))
+    ((and (pred seq-every-p-proper-list) two-lists)
+     (-applify-append two-lists))
+    (two-any (error "Not a semigroup"))))
 
-(cl-defmethod semigroup-concat ((a vector) b)
+(cl-defmethod join ((a vector) b)
   (vconcat a b))
+
+(cl-defgeneric stimes (n b))
+
+(cl-defmethod stimes (n b)
+  (make-list n b))
+
+
+
+(cl-defmethod stimes (n (b string))
+  (funcall (-compose #'string-join #'make-list) n b))
+
+(cl-defmethod stimes (n (b vector))
+  (funcall (-compose #'seq--into-vector #'make-list) n b))
 
 ;;  (cl-deftype)
 
