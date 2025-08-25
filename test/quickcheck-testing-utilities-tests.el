@@ -38,6 +38,13 @@
     (should (seq-subsetp actual-seq expected-super-set))
     (should (eql actual-seq-length test-calls))))
 
+(ert-deftest-n-times call-n-random-functions 100
+  (-let* (((expected-super-set test-list) (funcall (-compose (-juxt #'identity #'seq-map-cl-constantly) #'generate-test-list-of-nat-numbers)))
+	 (test-n (seq-random-chunk-length expected-super-set))
+	 ((actual-list actual-list-length) (funcall (-compose #'identity-and-seq-length #'call-n-random-functions) test-n test-list)))
+    (should (seq-subsetp actual-list expected-super-set))
+    (should (eql actual-list-length test-n))))
+
 (ert-deftest-n-times divide-array-values-by-random-seq-value 100
   (let ((actual-list (funcall (-compose #'divide-array-values-by-random-value #'random-nat-number-list-in-range-255))))
     (should (seq-every-p-float actual-list))))
@@ -74,18 +81,68 @@
       (should (seq-every-p-con actual-alist))))
 
 (ert-deftest-n-times generate-test-data-for-alist-of-strings-nat-number-cons 100
-  (-let (((actual-alist (actual-random-car . actual-random-cdr)) (funcall (-compose (-juxt #'identity #'nested-seq-one-random-value) #'generate-test-alist-of-strings-nat-number-cons))))
+  (-let (((actual-alist (actual-random-car . actual-random-cdr)) (funcall (-compose (-juxt #'identity #'nested-seq-one-random-value) #'generate-test-alist-of-string-nat-number-cons))))
     (should (stringp actual-random-car))
     (should (natnump actual-random-cdr))
     (should (seq-every-p-con actual-alist))))
 
 (ert-deftest-n-times generate-test-data-for-alist-of-nat-number-strings-cons 100
-  (-let (((actual-alist (actual-random-car . actual-random-cdr)) (funcall (-compose (-juxt #'identity #'nested-seq-one-random-value) #'generate-test-alist-of-nat-number-strings-cons))))
+  (-let (((actual-alist (actual-random-car . actual-random-cdr)) (funcall (-compose (-juxt #'identity #'nested-seq-one-random-value) #'generate-test-alist-of-nat-number-string-cons))))
     (should (natnump actual-random-car))
     (should (stringp actual-random-cdr))
     (should (seq-every-p-con actual-alist))))
 
+(ert-deftest-n-times generate-test-data-for-alist-of-string-vector-cons 100
+    (-let (((actual-alist (actual-random-car . actual-random-cdr)) (funcall (-compose (-juxt #'identity #'nested-seq-one-random-value) #'generate-test-alist-of-string-vector-of-nat-numbers-cons))))
+      (should (stringp actual-random-car))
+      (should (vectorp actual-random-cdr))
+      (should (seq-every-p-nat-number actual-random-cdr))
+      (should (seq-every-p-con actual-alist))))
 
+(ert-deftest-n-times generate-test-data-for-plist-of-nat-numbers 100
+    (-let (((actual-plist actual-random-key) (funcall (-compose (-juxt #'identity #'map-one-random-key) #'generate-test-plist-of-nat-numbers))))
+      (should (plistp actual-plist))
+      (should (natnump (map-elt actual-plist actual-random-key)))))
+
+(ert-deftest-n-times generate-test-data-for-plist-of-strings 100
+    (-let (((actual-plist actual-random-key) (funcall (-compose (-juxt #'identity #'map-one-random-key) #'generate-test-plist-of-strings))))
+      (should (plistp actual-plist))
+      (should (stringp (map-elt actual-plist actual-random-key)))))
+
+(ert-deftest-n-times generate-test-data-for-plist-from-strings-nat-number-pairs 100
+  (-let (((actual-plist actual-random-key) (funcall (-compose (-juxt #'identity #'map-one-random-key) #'generate-test-plist-from-string-nat-number-pairs))))
+    (should (plistp actual-plist))
+    (should (natnump (map-elt actual-plist actual-random-key)))))
+
+(ert-deftest-n-times generate-test-data-for-plist-from-nat-number-strings-pairs 100
+  (-let (((actual-plist actual-random-key) (funcall (-compose (-juxt #'identity #'map-one-random-key) #'generate-test-plist-from-nat-number-string-pairs))))
+    (should (plistp actual-plist))
+    (should (stringp (map-elt actual-plist actual-random-key)))))
+
+(ert-deftest-n-times generate-test-data-for-hash-table-of-nat-numbers 100
+    (-let (((actual-hash-table actual-random-key) (funcall (-compose (-juxt #'identity #'map-one-random-key) #'generate-test-hash-table-of-nat-numbers))))
+      (should (hash-table-p actual-hash-table))
+      (should (natnump (map-elt actual-hash-table actual-random-key)))))
+
+(ert-deftest-n-times generate-test-data-for-hash-table-of-strings 100
+    (-let (((actual-hash-table actual-random-key) (funcall (-compose (-juxt #'identity #'map-one-random-key) #'generate-test-hash-table-of-strings))))
+      (should (hash-table-p actual-hash-table))
+      (should (stringp (map-elt actual-hash-table actual-random-key)))))
+
+(ert-deftest-n-times generate-test-data-for-hash-table-from-strings-nat-number-pairs 100
+  (-let (((actual-hash-table actual-random-key) (funcall (-compose (-juxt #'identity #'map-one-random-key) #'generate-test-hash-table-from-string-nat-number-pairs))))
+      (should (hash-table-p actual-hash-table))
+      (should (natnump (map-elt actual-hash-table actual-random-key)))))
+
+(ert-deftest-n-times generate-test-data-for-hash-table-from-nat-number-string-pairs 100
+  (-let (((actual-hash-table actual-random-key) (funcall (-compose (-juxt #'identity #'map-one-random-key) #'generate-test-hash-table-from-nat-number-string-pairs))))
+      (should (hash-table-p actual-hash-table))
+      (should (stringp (map-elt actual-hash-table actual-random-key)))))
+
+(ert-deftest-n-times generate-test-data-for-hash-table-from-string-vector-of-nat-numbers-pairs 100
+  (-let (((actual-hash-table actual-random-key) (funcall (-compose (-juxt #'identity #'map-one-random-key) #'generate-test-hash-table-from-string-vector-of-nat-numbers-pairs))))
+      (should (hash-table-p actual-hash-table))
+      (should (vectorp (map-elt actual-hash-table actual-random-key)))))
 
 (ert-deftest-n-times generate-test-data-for-con-of-nat-numbers 100
   (-let (((actual-con (actual-car . actual-cdr))(funcall (-compose (-juxt #'identity #'identity) #'generate-test-con-of-nat-numbers))))
@@ -133,11 +190,52 @@
       (should (vectorp actual-vector))
       (should (seq-every-p-nat-number actual-vector))))
 
-(ert-deftest-n-times generate-n-random-seqs 100
-  (-let* (((actual-seqs actual-seq-count actual-ag-seqs-length actual-seq-type) (generate-n-random-seqs)))
+(ert-deftest-n-times generate-one-random-seq-type-n-times 100
+  (-let* ((((actual-seqs actual-ag-seqs-length actual-seq-type) expected-seq-count) (funcall (-compose (-juxt #'generate-one-random-seq-type-n-times #'identity) #'random-nat-number-in-range-10))))
+    (should (seq-every-p-seq actual-seqs))
+    (should (eql (seq-length actual-seqs) expected-seq-count))
+    (should (greater-than-zero actual-ag-seqs-length))
+    (should (symbolp actual-seq-type))))
+
+(ert-deftest-n-times generate-one-random-seq-type-n-random-times 100
+  (-let* ((((actual-seqs actual-ag-seqs-length actual-seq-type) actual-seq-count) (generate-one-random-seq-type-n-random-times)))
     (should (seq-every-p-seq actual-seqs))
     (should (greater-than-zero actual-seq-count))
-    (should (greater-than-zero actual-ag-seqs-length))))
+    (should (greater-than-zero actual-ag-seqs-length))
+    (should (symbolp actual-seq-type))))
+
+(ert-deftest-n-times generate-two-random-seq-types 100
+  (-let* ((((test-seq-one test-seq-one-length test-seq-one-type) (test-seq-two test-seq-two-length test-seq-two-type)) (generate-two-random-seq-types)))
+    (should (seq-every-p-seq (list test-seq-one test-seq-two)))
+    (should (greater-than-zero test-seq-one-length))
+    (should (greater-than-zero test-seq-two-length))
+    (should (seq-every-p-symbol (list test-seq-one-type test-seq-two-type)))))
+
+(ert-deftest-n-times generate-random-map 100
+  (-let* (((actual-map actual-map-length actual-map-type) (generate-random-map)))
+    (should (mapp actual-map))
+    (should (greater-than-zero actual-map-length))
+    (should (symbolp actual-map-type))))
+
+(ert-deftest-n-times generate-one-random-map-type-n-times 100
+  (-let* ((((actual-maps actual-ag-maps-length actual-map-type) expected-map-count) (funcall (-compose (-juxt #'generate-one-random-map-type-n-times #'identity) #'random-nat-number-in-range-10))))
+    (should (seq-every-p-map actual-maps))
+    (should (eql (seq-length actual-maps) expected-map-count))
+    (should (greater-than-zero actual-ag-maps-length))
+    (should (symbolp actual-map-type))))
+
+(ert-deftest-n-times generate-one-random-map-type-n-random-times 100
+  (-let* ((((actual-maps actual-ag-maps-length actual-map-type) actual-map-count) (generate-one-random-map-type-n-random-times)))
+    (should (seq-every-p-map actual-maps))
+    (should (greater-than-zero actual-map-count))
+    (should (greater-than-zero actual-ag-maps-length))
+    (should (symbolp actual-map-type))))
+
+(ert-deftest-n-times generate-random-semigroup 0
+  (-let* (((actual-semigroup actual-semigroup-size actual-semigroup-type) (generate-random-semigroup-type)))
+    (should (semigroupp actual-semigroup))
+    (should (greater-than-zero actual-semigroup-size))
+    (should (symbolp actual-semigroup-type))))
 
 (provide 'quickcheck-testing-utilities-tests)
 ;;; quickcheck-testing-utilities-tests.el ends here

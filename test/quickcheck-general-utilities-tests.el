@@ -9,19 +9,11 @@
 (ert-deftest-n-times convert-calc-value-into-lisp 100
   (should (floatp (convert-calc-value-into-lisp (math-gaussian-float)))))
 
-(ert-deftest times ()    
-  (let* ((test-n (random 255))
-	 (test-constant (random))
-	 (actual-result (times (cl-constantly test-constant) test-n))
-	 (actual-constant-count (funcall #'seq-count (apply-partially #'eql test-constant) actual-result)))      
-  (should (eql actual-constant-count test-n))))
-
-(ert-deftest-n-times times-no-args 100
-  (let* ((test-n (random 255))
-	 (test-constant (random))
-	 (actual-result (times-no-args (lambda () test-constant) test-n))
-	 (actual-constant-count (funcall #'seq-count (apply-partially #'eql test-constant) actual-result)))      
-  (should (eql actual-constant-count test-n))))
+(ert-deftest-n-times times 100
+  (-let* ((((expected-num test-func) test-calls) (funcall (-juxt (-compose (-juxt #'identity #'cl-constantly) #'random-nat-number-in-range-255) #'random-nat-number-in-range-255)))
+	 ((actual-seq actual-seq-length) (funcall (-compose #'identity-and-seq-length #'times) test-calls test-func)))
+    (should (seq-every-p (-partial #'eql expected-num) actual-seq))
+    (should (eql actual-seq-length test-calls))))
 
 (ert-deftest-n-times map-on-alist-of-nat-numbers 100
   (-let* ((test-alist (generate-test-alist-of-nat-numbers))

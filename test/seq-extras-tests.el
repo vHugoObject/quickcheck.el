@@ -173,22 +173,18 @@
   (-let* ((((test-string test-string-length) actual-position) (funcall (-compose (-juxt #'identity-and-seq-length #'seq-random-position) #'generate-test-string))))
 	(should (funcall (between-zero-and-? test-string-length) actual-position))))
 
-(ert-deftest-n-times seq-item-at-position-lists 100
-  (-let* (((test-list test-position) (funcall (-compose (-juxt #'identity #'seq-random-position) #'generate-test-list-of-strings))))
-	(should (seq-contains-p test-list (seq-item-at-position test-position test-list)))))
-
-(ert-deftest-n-times seq-item-at-position-vectors 100
-  (-let* (((test-vector test-position) (funcall (-compose (-juxt #'identity #'seq-random-position) #'generate-test-vector-of-nat-numbers))))
-	(should (seq-contains-p test-vector (seq-item-at-position test-position test-vector)))))
-
-(ert-deftest-n-times seq-item-at-position-strings 100
-  (-let* (((test-string test-position) (funcall (-compose (-juxt #'identity #'seq-random-position) #'generate-test-string))))
-	(should (seq-contains-p test-string (seq-item-at-position test-position test-string)))))
+(ert-deftest-n-times seq-random-item-with-position 100
+  (-let* (((test-seq test-seq-length expected-seq-type) (generate-random-seq))
+	  ((actual-item actual-position) (seq-random-item-with-position test-seq)))
+    (should (seq-contains-p test-seq actual-item))
+    (should (funcall (between-zero-and-? test-seq-length) actual-position))))
 
 (ert-deftest-n-times seq-butlast 100
-  (-let* ((((test-seq test-seq-length expected-seq-type)) (funcall (-compose (-juxt #'identity (-compose #'seq-last #'seq-first)) #'generate-random-seq)))
+  (-let* (((test-seq test-seq-length expected-seq-type) (generate-random-seq))
+	  (expected-last-item-as-seq (funcall (-compose #'list #'seq-last) test-seq))
 	  ((actual-seq actual-seq-length) (funcall (-compose (-juxt #'identity #'seq-length) #'seq-butlast) test-seq)))
-    (should (eql actual-seq-length (1- test-seq-length)))))
+    (should (eql actual-seq-length (1- test-seq-length)))
+    (should (equal (seq-difference test-seq actual-seq) expected-last-item-as-seq))))
 
 (ert-deftest-n-times seq-cons 100
   (-let* (((expected-seq _ expected-seq-type) (generate-random-seq))
@@ -226,9 +222,9 @@
 
 (ert-deftest-n-times seq-rotate 100
   (-let* (((test-rotations (test-seq test-seq-length test-seq-type)) (funcall (-juxt #'random-nat-number-in-range-255 #'generate-random-seq)))
-	  ((test-position test-item) (funcall (-compose (-juxt #'identity (-rpartial #'seq-item-at-position test-seq)) #'seq-random-position) test-seq))
+	  ((test-position test-item) (funcall (-compose (-juxt #'identity (-partial #'seq-elt test-seq)) #'seq-random-position) test-seq))
 	  (expected-test-item-position (funcall (-compose (-rpartial #'mod test-seq-length) (-partial #'+ test-rotations)) test-position))
-	  ((actual-seq actual-item) (funcall (-compose (-juxt #'identity (-partial #'seq-item-at-position expected-test-item-position)) #'seq-rotate) test-rotations test-seq)))
+	  ((actual-seq actual-item) (funcall (-compose (-juxt #'identity (-rpartial #'seq-elt expected-test-item-position)) #'seq-rotate) test-rotations test-seq)))
     (should (cl-typep actual-seq test-seq-type))
     (should (eql actual-item test-item))))
 
@@ -246,7 +242,7 @@
     (should (eql actual-seq-length expected-subseq-length))))
 
 (ert-deftest-n-times seq-concat 100
-  (-let* (((test-seqs _ expected-seq-length expected-seq-type) (generate-n-random-seqs))
+  (-let* (((test-seqs _ expected-seq-length expected-seq-type) (generate-one-random-seq-type-n-times))
 	  ((actual-seq actual-seq-length) (funcall (-compose #'identity-and-seq-length (-applify #'seq-concat)) test-seqs)))
   (should (cl-typep actual-seq expected-seq-type))
   (should (eql actual-seq-length expected-seq-length))))
@@ -269,6 +265,13 @@
 	  ((actual-chunked-seq actual-random-chunk) (funcall (-compose (-juxt #'identity #'nested-seq-one-random-value) #'seq-n-random-chunks-of-random-size) test-chunk-count test-seq)))
   (should (length= actual-chunked-seq test-chunk-count))
   (should (cl-typep actual-random-chunk test-seq-type))))
+
+(ert-deftest-n-times seq-zip-shortest-pair 100
+    (-let* ((((test-seq-one test-seq-one-length _) (test-seq-two test-seq-two-length __)) (generate-two-random-seq-types))
+	   ((actual-zipped-seqs ((actual-car . actual-cdr) actual-random-position)) (funcall (-compose (-juxt #'identity #'seq-random-item-with-position) #'seq-zip-shortest-pair) test-seq-one test-seq-two)))
+      (should (equal (seq-length actual-zipped-seqs) (min test-seq-one-length test-seq-two-length)))        
+      (should (equal actual-car (seq-elt test-seq-one actual-random-position)))
+      (should (equal actual-cdr (seq-elt test-seq-two actual-random-position)))))
 
 (provide 'seq-extras-tests)
 ;;; seq-extras-tests.el ends here
