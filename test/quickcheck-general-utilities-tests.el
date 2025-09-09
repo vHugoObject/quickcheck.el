@@ -1,19 +1,23 @@
 ;;; quickcheck-general-utilities-tests.el --- quickcheck: General Utilities tests  -*- lexical-binding: t; -*-
           (require 'seq)
-          (require 'calc-comb)
           (require 'cl-lib)
           (require 'dash)
-          (require 's)  
           (require 'quickcheck)
 
 (ert-deftest-n-times convert-calc-value-into-lisp 100
   (should (floatp (convert-calc-value-into-lisp (math-gaussian-float)))))
 
-(ert-deftest-n-times times 100
+(ert-deftest-n-times -times 100
   (-let* ((((expected-num test-func) test-calls) (funcall (-juxt (-compose (-juxt #'identity #'cl-constantly) #'random-nat-number-in-range-255) #'random-nat-number-in-range-255)))
-	 ((actual-seq actual-seq-length) (funcall (-compose #'identity-and-seq-length #'times) test-calls test-func)))
+	 ((actual-seq actual-seq-length) (funcall (-compose #'identity-and-seq-length #'-times) test-calls test-func)))
     (should (seq-every-p (-partial #'eql expected-num) actual-seq))
     (should (eql actual-seq-length test-calls))))
+
+(ert-deftest-n-times -compose-and-call 0
+  (-let* (((test-list (test-func-one test-func-two)) (generate-array-of-test-cl-constantlys))
+	  (test-arg (random-nat-number-in-range-255))
+	 ((actual-value) (-compose-and-call (test-func-one test-func-two) test-arg)))
+    (should (eql actual-value (car test-list)))))
 
 (ert-deftest-n-times map-on-alist-of-nat-numbers 100
   (-let* ((test-alist (generate-test-alist-of-nat-numbers))
@@ -33,6 +37,12 @@
   (should (stringp actual-string))
   (should (length= actual-string test-alist-length))
   (should (integerp actual-sum))))
+
+(ert-deftest-n-times map-one-random-value 100
+  (-let* (((test-map _ __) (generate-random-map))
+	  (actual-value (map-one-random-value test-map))
+	  (expected-values (map-values test-map)))
+    (should (seq-contains expected-values actual-value))))
 
 (ert-deftest-n-times between-one-and-?-true 100
   (-let* (((test-? test-nat-number) (funcall (-compose (-juxt #'1+ #'identity) #'random-nat-number-in-range-255))))

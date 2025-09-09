@@ -1,7 +1,8 @@
 ;;; seq-extras-tests.el --- quickcheck: seq-extras  -*- lexical-binding: t; -*-
-          (require 'seq)
-          (require 'dash)  
-          (require 'quickcheck)
+(require 'seq)
+(require 'dash)
+(require 's)
+(require 'quickcheck)
 
 (ert-deftest-n-times seq-take-right-for-lists 100
     (-let* (((test-list test-chunk-length) (funcall (-compose (-juxt #'identity #'seq-random-chunk-length) #'generate-test-list-of-nat-numbers)))

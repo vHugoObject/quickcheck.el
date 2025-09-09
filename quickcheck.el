@@ -34,11 +34,11 @@
 (require 'cl-lib)
 (require 'calc-comb)
 (require 'range)
-(require 'map)
-(require 'dash)
-(require 's)
+(require 'map)  
 (require 'macroexp)
 (require 'gv)
+(require 'dash)
+(require 's)
 
 (defconst TENRANGE
   (list 1 10)    
@@ -94,12 +94,16 @@
 
 (defalias '-applify-cons  (-applify #'cons))
 (defalias '-applify-concat  (-applify #'concat))
+(defalias '-applify-vconcat  (-applify #'vconcat))
 (defalias '-applify-append (-applify #'append))
+
+
 (defalias '-applify-mapcar  (-applify #'mapcar))
 (defalias '-applify-cl-subsetp (-applify #'cl-subsetp))
 (defalias '-applify-seq-split (-applify #'seq-split))
 (defalias '-applify-seq-take (-applify #'seq-take))
 (defalias '-applify-vector (-applify #'vector))
+(defalias '-applify-map-elt (-applify #'map-elt))
 
 (defalias 'seq-take-flipped (-flip #'seq-take))
 (defalias '-applify-seq-take-flipped (-applify #'seq-take-flipped))
@@ -113,14 +117,18 @@
 (defalias '-duplicate (-juxt #'identity #'identity))
 
 (defun -times (calls function)
+  "Convenience wrapper for -dotimes"
   (let ((result '()))
     (-dotimes calls (lambda (index) (seq-append (funcall function index) result)))
     result))
 
 (defun -times-no-args (calls function)
+  "Call a function n times with no args"
   (let ((result '()))
     (-dotimes calls (lambda (_) (seq-append (funcall function) result)))
     result))
+
+(defalias '-times-no-args-twice (-partial #'-times-no-args 2))
 
 (cl-defun range-member-exclusive-p ((range-min range-max) number)
   (and (greater-than-or-equal number range-min) (less-than number range-max)))
@@ -194,6 +202,8 @@
 (defun call-n-random-functions (n funcs)
   (funcall (-compose (-partial #'-map #'funcall) (-partial #'-take n) #'shuffle-list) funcs))
 
+(defalias 'random-boolean (-partial #'nested-seq-one-random-value (list 't 'nil)))
+
 (defalias 'seq-count-nat-numbers (apply-partially #'seq-count #'natnump))
 (defalias 'seq-count-floats (apply-partially #'seq-count #'floatp))
 (defalias 'seq-count-strings (apply-partially #'seq-count #'stringp))  
@@ -208,6 +218,7 @@
 
 (defalias 'seq-map-seq--into-list (apply-partially #'seq-map #'seq--into-list))
 (defalias 'seq-map-char-to-string (apply-partially #'seq-map #'char-to-string))
+(defalias 'seq-map-string-to-char (apply-partially #'seq-map #'string-to-char))
 (defalias 'seq-map-cl-constantly (apply-partially #'seq-map #'cl-constantly))
 
 (defalias 'seq-min-length (-compose #'-min #'seq-map-seq-length))
@@ -217,17 +228,21 @@
 (defalias 'seq-max-plus-one (-compose #'1+ #'seq-max))
 (defalias 'seq-max-plus-one-and-random-chunk-length (-juxt #'seq-max-plus-one  #'seq-random-chunk-length))
 
-(defalias 'seq-every-p-seq (apply-partially #'seq-every-p #'seqp))
+(defalias 'seq-every-p-integer (apply-partially #'seq-every-p #'integerp))
 (defalias 'seq-every-p-nat-number (apply-partially #'seq-every-p #'natnump))
 (defalias 'seq-every-p-float (apply-partially #'seq-every-p #'floatp))
+(defalias 'seq-every-p-between-zero-and-one (apply-partially #'seq-every-p #'between-zero-and-one))
+
 (defalias 'seq-every-p-string (apply-partially #'seq-every-p #'stringp))
+(defalias 'seq-every-p-seq (apply-partially #'seq-every-p #'seqp))
+(defalias 'seq-every-p-map (apply-partially #'seq-every-p #'mapp))
 (defalias 'seq-every-p-list (apply-partially #'seq-every-p #'listp))
 (defalias 'seq-every-p-proper-list (apply-partially #'seq-every-p #'proper-list-p))
 (defalias 'seq-every-p-vector (apply-partially #'seq-every-p #'vectorp))
 (defalias 'seq-every-p-con (apply-partially #'seq-every-p #'-cons-pair-p))
-(defalias 'seq-every-p-between-zero-and-one (apply-partially #'seq-every-p #'between-zero-and-one))
 (defalias 'seq-every-p-symbol (apply-partially #'seq-every-p #'symbolp))
-(defalias 'seq-every-p-map (apply-partially #'seq-every-p #'mapp))
+
+(defalias 'seq-every-p-function (apply-partially #'seq-every-p #'functionp))
 
 (defalias 'seq-take-one (-rpartial #'seq-take 1))
 (defalias 'seq-take-two (-rpartial #'seq-take 2))
@@ -416,6 +431,8 @@
 (defalias 'seq-zip-shortest-pair (-compose (-partial #'seq-zip-shortest-with #'-applify-cons) #'list))
 (defalias '-applify-seq-zip-shortest-pair (-applify #'seq-zip-shortest-pair))
 
+(defalias 'seq-zip-shortest-pair-into-plist (-compose #'map-into-plist #'seq-zip-shortest-pair))
+
 (defalias 'map-into-alist (-rpartial #'map-into 'alist))
 (defalias 'map-into-plist (-rpartial #'map-into 'plist))
 (defalias 'map-into-hash-table (-rpartial #'map-into 'hash-table))
@@ -430,10 +447,17 @@
    (_ (error "not a map"))))
 
 (defalias 'map-one-random-key (-compose #'nested-seq-one-random-value #'map-keys))
+(defalias 'seq-map-one-random-map-key (-partial #'seq-map #'map-one-random-key))
+
+(defalias 'map-one-random-value (-compose #'-applify-map-elt (-juxt #'identity #'map-one-random-key)))
 
 (defun map-on (op keys-trans values-trans map)
-  "apply one function to map keys and one function to map values"
+  "Apply one function to map keys, one function to map values and one function the result"
    (funcall (-compose op (-juxt (-compose keys-trans #'map-keys) (-compose values-trans #'map-values))) map))
+
+(defalias 'concat-two-cons-of-strings (-compose (-partial #'map-on #'-applify-cons #'-applify-concat #'-applify-concat) #'list))
+
+(defalias 'concat-two-string-vector-cons (-compose (-partial #'map-on #'-applify-cons #'-applify-concat #'-applify-vconcat) #'list))
 
 ;; test-runner
 ;; needs a test
@@ -444,6 +468,8 @@
        (let ((,fun-sym (lambda (x) (progn
 				     ,body 1))))  			 
 	(-dotimes ,runs ,fun-sym)))))
+
+(defalias 'generate-array-of-test-cl-constantlys (-compose (-juxt #'identity #'seq-map-cl-constantly) #'generate-test-list-of-nat-numbers))
 
 (cl-defun generate-test-data (&optional &key item-transformer &key list-transformer
 				     &key min-length &key max-length)
@@ -467,9 +493,13 @@
 	#'generate-test-list-of-floats
 	#'generate-test-list-of-lists-nat-numbers))
 
-(defalias 'generate-test-string (apply-partially #'generate-test-data :item-transformer #'identity :list-transformer (-compose #'seq--into-string #'seq-shuffle)))
+(defalias 'generate-one-random-list (-compose (-juxt #'identity #'seq-length) (apply-partially #'call-random-function list-generators)))
+
+(defalias 'generate-test-string (apply-partially #'generate-test-data :list-transformer (-compose #'seq--into-string #'seq-shuffle)))
 
 (defalias 'generate-test-vector-of-nat-numbers (apply-partially #'generate-test-data :list-transformer (-compose #'seq--into-vector #'seq-shuffle)))
+(defconst vector-generators
+  (list #'generate-test-vector-of-nat-numbers #'generate-test-vector-of-nat-numbers))
 
 (defalias 'generate-test-alist-of-nat-numbers (apply-partially #'generate-test-data :list-transformer (-compose #'-applify-zip (-juxt #'seq-reverse #'seq-shuffle))))
 (defalias 'generate-test-alist-of-strings (apply-partially #'generate-test-data :item-transformer #'char-to-string :list-transformer (-compose #'-applify-zip (-juxt #'seq-reverse #'seq-shuffle))))
@@ -484,6 +514,8 @@
 	#'generate-test-alist-of-nat-number-string-cons
 	#'generate-test-alist-of-string-vector-of-nat-numbers-cons))
 
+(defalias 'generate-random-alist (-compose (-juxt #'identity #'map-length) (apply-partially #'call-random-function alist-generators)))
+
 (defalias 'generate-test-plist-of-nat-numbers (-compose #'map-into-plist #'generate-test-alist-of-nat-numbers))
 (defalias 'generate-test-plist-of-strings (-compose #'map-into-plist #'generate-test-alist-of-strings))
 (defalias 'generate-test-plist-from-string-nat-number-pairs (-compose #'map-into-plist #'generate-test-alist-of-string-nat-number-cons))
@@ -494,6 +526,8 @@
 	#'generate-test-plist-of-strings
 	#'generate-test-plist-from-string-nat-number-pairs
 	#'generate-test-plist-from-nat-number-string-pairs))
+
+(defalias 'generate-random-plist (-compose (-juxt #'identity #'map-length) (apply-partially #'call-random-function plist-generators)))
 
 (defalias 'generate-test-hash-table-of-nat-numbers (-compose #'map-into-hash-table #'generate-test-alist-of-nat-numbers))
 (defalias 'generate-test-hash-table-of-strings (-compose #'map-into-hash-table #'generate-test-alist-of-strings))
@@ -508,6 +542,8 @@
 	#'generate-test-hash-table-from-nat-number-string-pairs
 	#'generate-test-hash-table-from-string-vector-of-nat-numbers-pairs))
 
+  (defalias 'generate-one-random-hash-table (-compose (-juxt #'identity #'map-length) (apply-partially #'call-random-function hash-table-generators)))
+
 (defalias 'generate-test-con-of-nat-numbers (apply-partially #'generate-test-data :list-transformer #'random-con-from-array))  
 (defalias 'generate-test-con-of-floats (apply-partially #'generate-test-data :list-transformer (-compose #'random-con-from-array #'divide-array-values-by-max-array-value)))
 (defalias 'generate-test-con-of-strings (apply-partially #'generate-test-data :item-transformer #'char-to-string :list-transformer #'random-con-from-array))
@@ -517,62 +553,160 @@
 (defalias 'generate-test-string-vector-of-nat-numbers-con (apply-partially #'generate-test-data :list-transformer (-compose #'-applify-cons (-juxt (-compose #'char-to-string #'-first-item) (-compose #'-applify-vector #'cdr)))))
 
 (defconst seq-generators
-  (append list-generators (list #'generate-test-string #'generate-test-vector-of-nat-numbers)))
+  (append list-generators vector-generators (list #'generate-test-string)))
 
 (defconst map-generators
   (append alist-generators plist-generators hash-table-generators))
+
+(defconst generator-types    
+  (list "list" "alist" "plist" "hash-table" "vector" "map" "seq"))
+
+
+(defconst type-to-pred-mapping
+  (list `("list" . ,#'proper-list-p)
+	`("alist" . ,#'alistp)
+	`("plist" . ,#'plistp)
+	`("hash-table" . ,#'hash-table-p)
+	`("vector" . ,#'vectorp)
+	`("map" . ,#'mapp)
+	`("seq" . ,#'seqp)))
+
+(defconst type-generator-mapping
+  (list `("list" . ,list-generators)
+	`("alist" . ,alist-generators)
+	`("plist" . ,plist-generators)
+	`("hash-table" . ,hash-table-generators)
+	`("vector" . ,vector-generators)
+	`("map" . ,map-generators)
+	`("seq" . ,seq-generators)))
+  
+
+(defalias 'assoc-cdr (-compose #'cdr #'assoc))
+(defalias 'get-random-generator-type (-partial #'nested-seq-one-random-value generator-types))
+(defalias 'get-generators-of-type-x (-rpartial #'assoc-cdr type-generator-mapping))
+(defalias 'get-predicate-for-generator-type (-rpartial #'assoc-cdr type-to-pred-mapping))
+
+
+
+(defalias 'call-one-random-generator-of-type-x-one-time (-compose #'call-random-function #'get-generators-of-type-x))
+
+(defun call-one-random-generator-of-type-x-n-times (type calls)
+  (funcall (-compose (-partial #'call-random-function-n-times calls) #'get-generators-of-type-x) type))
+
+(defalias 'call-one-random-seq-generator-n-times (-partial #'call-one-random-generator-of-type-x-n-times "seq"))
+(defalias 'call-one-random-map-generator-n-times (-partial #'call-one-random-generator-of-type-x-n-times "map"))
+(defalias 'call-one-random-hash-table-generator-n-times (-partial #'call-one-random-generator-of-type-x-n-times "hash-table"))
+
+(defalias 'call-one-random-list-generator-n-times (-partial #'call-one-random-generator-of-type-x-n-times "list"))
+(defalias 'call-one-random-hash-table-generator-n-times (-partial #'call-one-random-generator-of-type-x-n-times "hash-table"))
+(defalias 'call-one-random-plist-generator-n-times (-partial #'call-one-random-generator-of-type-x-n-times "plist"))
+(defalias 'call-one-random-alist-generator-n-times (-partial #'call-one-random-generator-of-type-x-n-times "alist"))
+
+(defalias 'call-one-random-hash-table-generator-twice (-partial #'call-one-random-generator-of-type-x-n-times "hash-table" 2))
+(defalias 'call-one-random-plist-generator-twice (-partial #'call-one-random-generator-of-type-x-n-times "plist" 2))
+(defalias 'call-one-random-alist-generator-twice (-partial #'call-one-random-generator-of-type-x-n-times "alist" 2))
 
 (defalias 'generate-random-seq (-compose (-juxt #'identity #'seq-length #'seq-type) (apply-partially #'call-random-function seq-generators)))
 
 (defalias 'generate-n-random-seq-types (-compose (-partial #'seq-map (-juxt #'identity #'seq-length #'seq-type)) (-rpartial #'call-n-random-functions seq-generators)))
 (defalias 'generate-two-random-seq-types (-partial #'generate-n-random-seq-types 2))
 
-(defalias 'generate-one-random-seq-type-n-times (-compose (-juxt #'identity #'seq-sum-seq-lengths (-compose #'seq-type #'car)) (-rpartial #'call-random-function-n-times seq-generators)))
+(defalias 'generate-one-random-seq-type-n-times (-compose (-juxt #'identity #'seq-sum-seq-lengths (-compose #'seq-type #'car)) #'call-one-random-seq-generator-n-times))
 
 (defalias 'generate-one-random-seq-type-n-random-times (-compose (-juxt #'generate-one-random-seq-type-n-times #'identity) #'random-nat-number-in-range-10))
 
-(defalias 'generate-random-map (-compose (-juxt #'identity #'map-length #'map-type) (apply-partially #'call-random-function map-generators)))
+(defalias 'generate-random-map (-compose (-juxt #'identity #'map-length #'map-type) (-partial #'call-random-function map-generators)))
 
-(defalias 'generate-one-random-map-type-n-times (-compose (-juxt #'identity #'seq-sum-map-sizes (-compose #'map-type #'car)) (-rpartial #'call-random-function-n-times map-generators)))
+(defalias 'generate-one-random-map-type-n-times (-compose (-juxt #'identity #'seq-sum-map-sizes (-compose #'map-type #'car)) #'call-one-random-map-generator-n-times))
+(defalias 'generate-one-random-map-type-twice (-partial #'generate-one-random-map-type-n-times 2))
 
 (defalias 'generate-one-random-map-type-n-random-times (-compose (-juxt 'generate-one-random-map-type-n-times #'identity) #'random-nat-number-in-range-10))
 (defalias 'generate-one-random-map-type-two-times (-partial #'generate-one-random-map-type-n-random-times 2))
+
+(defmacro new-type (args)
+  (-let* (([type con-name decon-name predicate] args))
+    `(defmacro ,con-name (value)
+       (defun ,decon-name (sum)
+	 (aref sum 1))
+       `(if (funcall ,',predicate ,value)
+	    (make-record ,',type 1 ,value)
+	  (error (format "%s can not be converted into a %s" (type-of ,value) (symbol-name ,',type)))))))
+
+;; (defconst default-new-type-arguments    
+;;   (list (cons "sum" ["sum" "Sum" "get-sum" #'integerp])
+;; 	(cons "product" [ "product" "Product" "get-product" #'integerp))
+;; 	(cons "min"  ["min" "Min" "get-min" #'integerp))
+;; 	(cons "max" . ,[ 'max 'Max 'get-max #'integerp))
+;; 	(cons "const" . ,[ 'const 'Const 'get-const #'integerp))
+;; 	(cons "first" . ,[ 'first 'First 'get-first #'integerp))
+;; 	(cons "last" . ,[ 'last 'Last 'get-last #'integerp))
+;; 	(cons "any" [ 'any  'Any 'get-any #'booleanp))
+;; 	(cons "all"  ["all" "All" "get-all" #'booleanp))
+;; 	(cons "plist"  ["plist" "Plist" "get-plist" #'plistp]))
+
+(defconst default-new-type-arguments    
+  (list (cons "sum" ['sum Sum get-sum #'integerp])))
+
+(new-type ['sum Sum get-sum #'integerp])
+(new-type ['all All get-all #'booleanp])
+(new-type ['plist Plist get-plist #'plistp])
 
 (defun con-of-strings-p (x)
   (pcase x
     ((and (pred -cons-pair-p) `(,(pred stringp) . ,(pred stringp))) t)
     (_ nil)))
 
+(defun string-vector-con-p (x)
+  (pcase x
+    ((and (pred -cons-pair-p) `(,(pred stringp) . ,(pred vectorp))) t)
+    (_ nil)))
+
 (defalias 'seq-every-p-cons-of-strings-p (apply-partially #'seq-every-p #'con-of-strings-p))
 
-(cl-defgeneric join (a b))
+(cl-defgeneric semigroup-concat (a b))
 
-(cl-defmethod join ((a string) b)
+(cl-defmethod semigroup-concat ((a string) b)
   (concat a b))
 
-(cl-defmethod join ((a cons) b)
-  (pcase (list a b)
-    ((and (pred seq-every-p-cons-of-strings-p) two-cons)
-     (map-on #'-applify-cons #'-applify-concat #'-applify-concat two-cons))
-    ((and (pred seq-every-p-proper-list) two-lists)
-     (-applify-append two-lists))
-    (two-any (error "Not a semigroup"))))
+(cl-defmethod semigroup-concat ((a cons) b)
+  (cond
+   ((con-of-strings-p a)
+    (concat-two-cons-of-strings a b))
+   ((string-vector-con-p a)
+    (concat-two-string-vector-cons a b))
+   ((alistp a) (map-merge 'alist a b))
+   ((proper-list-p a) (append a b))
+   (_ (error "Not a semigroup"))))
 
-(cl-defmethod join ((a vector) b)
+(cl-defmethod semigroup-concat ((a vector) b)
   (vconcat a b))
 
-(cl-defgeneric stimes (n b))
+(cl-defmethod semigroup-concat ((a hash-table) b)
+  (map-merge 'hash-table a b))
 
-(cl-defmethod stimes (n b)
-  (make-list n b))
+(defalias 'repeat-con-of-semigroups (cl-function (lambda (n (a . b)) (cons (stimes n a) (stimes n b)))))
 
 
 
-(cl-defmethod stimes (n (b string))
-  (funcall (-compose #'string-join #'make-list) n b))
+;; test copy-alist
+;; test copy-list
+(cl-defmethod stimes (n (a cons))
+  (cond
+   ((con-of-strings-p a) (repeat-con-of-semigroups n a))
+   ((string-vector-con-p a) (repeat-con-of-semigroups n a))
+   ((alistp a) (make-list n a))
+   ((proper-list-p a) (make-list n a))
+   (_ (error "Not a semigroup"))))
 
-(cl-defmethod stimes (n (b vector))
-  (funcall (-compose #'seq--into-vector #'make-list) n b))
+(cl-defmethod stimes (n (a string))
+  (funcall (-compose #'-applify-concat #'make-list) n a))
+
+(cl-defmethod stimes (n (a vector))
+  (make-vector n a))
+
+;; test copy-hash-table
+(cl-defmethod stimes (n (a hash-table))
+  (make-list n a))
 
 ;;  (cl-deftype)
 

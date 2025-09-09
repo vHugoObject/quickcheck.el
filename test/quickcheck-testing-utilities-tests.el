@@ -1,10 +1,7 @@
 ;;; quickcheck-testing-utilities-tests.el --- quickcheck: Testing utilities tests  -*- lexical-binding: t; -*-  
         (require 'seq)
-        (require 'calc-comb)
-        (require 'cl-lib)
         (require 'map)
         (require 'dash)
-        (require 's)
         (require 'quickcheck)
 
 (ert-deftest-n-times random-nat-number-in-range 100    
@@ -28,9 +25,16 @@
     (should (floatp actual-result))
     (should (less-than-or-equal actual-result actual-input-value))))
 
+(ert-deftest-n-times generate-test-cl-constantly 100
+  (-let* (((expected-super-set test-list) (generate-array-of-test-cl-constantlys)))
+    (should (eql (seq-length expected-super-set) (seq-length test-list)))
+    (should (seq-every-p-nat-number expected-super-set))
+    (should (seq-every-p-function test-list))))
+
 (ert-deftest-n-times call-random-function 100
-  (-let (((expected-super-set test-list) (funcall (-compose (-juxt #'identity #'seq-map-cl-constantly) #'generate-test-list-of-nat-numbers))))
-    (should (funcall (-compose (apply-partially #'seq-contains-p expected-super-set) #'call-random-function) test-list))))
+  (-let* (((expected-super-set test-list) (funcall (-compose (-juxt #'identity #'seq-map-cl-constantly) #'generate-test-list-of-nat-numbers)))
+	 (actual-value (call-random-function test-list)))
+    (should (seq-contains-p expected-super-set actual-value))))
 
 (ert-deftest-n-times call-random-function-n-times 100
   (-let* ((((expected-super-set test-list) test-calls) (funcall (-juxt (-compose (-juxt #'identity #'seq-map-cl-constantly) #'generate-test-list-of-nat-numbers) #'random-nat-number-in-range-255)))
@@ -190,6 +194,8 @@
       (should (vectorp actual-vector))
       (should (seq-every-p-nat-number actual-vector))))
 
+
+
 (ert-deftest-n-times generate-one-random-seq-type-n-times 100
   (-let* ((((actual-seqs actual-ag-seqs-length actual-seq-type) expected-seq-count) (funcall (-compose (-juxt #'generate-one-random-seq-type-n-times #'identity) #'random-nat-number-in-range-10))))
     (should (seq-every-p-seq actual-seqs))
@@ -211,6 +217,11 @@
     (should (greater-than-zero test-seq-two-length))
     (should (seq-every-p-symbol (list test-seq-one-type test-seq-two-type)))))
 
+(ert-deftest-n-times generate-one-random-list 100
+  (-let* (((actual-list actual-list-length) (generate-one-random-list)))
+    (should (proper-list-p actual-list))
+    (should (natnump actual-list-length))))
+
 (ert-deftest-n-times generate-random-map 100
   (-let* (((actual-map actual-map-length actual-map-type) (generate-random-map)))
     (should (mapp actual-map))
@@ -230,6 +241,11 @@
     (should (greater-than-zero actual-map-count))
     (should (greater-than-zero actual-ag-maps-length))
     (should (symbolp actual-map-type))))
+
+(ert-deftest-n-times generate-one-random-hash-table 100
+  (-let* (((actual-hash-table actual-size) (generate-one-random-hash-table)))
+    (should (hash-table-p actual-hash-table))
+    (should (natnump actual-size))))
 
 (ert-deftest-n-times generate-random-semigroup 0
   (-let* (((actual-semigroup actual-semigroup-size actual-semigroup-type) (generate-random-semigroup-type)))

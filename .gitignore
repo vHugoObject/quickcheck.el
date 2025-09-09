@@ -13,10 +13,11 @@
 **/*_archive
 
 
-/.cask
-
 
 # remove org files from tracking
 test/*org
 quickcheck.org
 Makefile.org
+
+
+/.eldev
