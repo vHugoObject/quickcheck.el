@@ -250,20 +250,20 @@
 
 (ert-deftest-n-times seq-split-infinite 100
   (-let* ((((test-seq test-seq-length test-seq-type) test-chunk-size) (funcall (-juxt #'generate-random-seq #'random-nat-number-in-range-255)))
-	  ((actual-seq actual-random-chunk) (funcall (-compose (-juxt #'identity #'nested-seq-one-random-value) #'seq-split-infinite) test-chunk-size test-seq)))
+	  ((actual-seq actual-random-chunk) (funcall (-compose (-juxt #'identity #'nested-seq-take-one-random-value) #'seq-split-infinite) test-chunk-size test-seq)))
     (should (cl-typep actual-random-chunk test-seq-type))
     (should (length= actual-random-chunk test-chunk-size))))
 
 (ert-deftest-n-times seq-n-random-chunks-of-size-x 100
   (-let* (((test-chunk-length test-chunk-count (test-seq _ test-seq-type)) (funcall (-juxt #'random-nat-number-in-range-500 #'random-nat-number-in-range-255 #'generate-random-seq)))
-	  ((actual-chunked-seq actual-random-chunk) (funcall (-compose (-juxt #'identity #'nested-seq-one-random-value) #'seq-n-random-chunks-of-size-x) test-chunk-length test-chunk-count test-seq)))
+	  ((actual-chunked-seq actual-random-chunk) (funcall (-compose (-juxt #'identity #'nested-seq-take-one-random-value) #'seq-n-random-chunks-of-size-x) test-chunk-length test-chunk-count test-seq)))
   (should (length= actual-chunked-seq test-chunk-count))
   (should (cl-typep actual-random-chunk test-seq-type))
   (should (length= actual-random-chunk test-chunk-length))))
 
 (ert-deftest-n-times seq-n-random-chunks-of-random-size 100
   (-let* (((test-chunk-count (test-seq _ test-seq-type)) (funcall (-juxt #'random-nat-number-in-range-255 #'generate-random-seq)))
-	  ((actual-chunked-seq actual-random-chunk) (funcall (-compose (-juxt #'identity #'nested-seq-one-random-value) #'seq-n-random-chunks-of-random-size) test-chunk-count test-seq)))
+	  ((actual-chunked-seq actual-random-chunk) (funcall (-compose (-juxt #'identity #'nested-seq-take-one-random-value) #'seq-n-random-chunks-of-random-size) test-chunk-count test-seq)))
   (should (length= actual-chunked-seq test-chunk-count))
   (should (cl-typep actual-random-chunk test-seq-type))))
 

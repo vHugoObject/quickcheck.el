@@ -19,6 +19,29 @@
 	 ((actual-value) (-compose-and-call (test-func-one test-func-two) test-arg)))
     (should (eql actual-value (car test-list)))))
 
+(ert-deftest-n-times -juxt-every-true 100
+  (-let* (((test-predicates test-list) (generate-test-list-of-integer-member-predicates))
+	  (test-juxt-every (funcall (-applify #'-juxt-every) test-predicates)))
+    (should (funcall test-juxt-every test-list))))
+
+(ert-deftest-n-times -juxt-every-false 100
+  (-let* (((test-predicates full-test-list) (generate-test-list-of-integer-member-predicates))
+	  (test-juxt-every (funcall (-applify #'-juxt-every) test-predicates))
+	  (test-list (seq-random-chunk full-test-list)))
+    (should-not (funcall test-juxt-every test-list))))
+
+(ert-deftest-n-times -juxt-any-true 100
+  (-let* (((test-predicates full-test-list) (generate-test-list-of-integer-member-predicates))
+	  (test-juxt-any (funcall (-applify #'-juxt-any) test-predicates))
+	  (test-list (seq-random-chunk full-test-list)))
+    (should (funcall test-juxt-any test-list))))
+
+(ert-deftest-n-times -juxt-any-false 100
+  (-let* (((test-predicates _) (generate-test-list-of-integer-member-predicates))
+	  (test-juxt-any (funcall (-applify #'-juxt-any) test-predicates))
+	  (test-list (generate-test-list-of-strings)))
+    (should-not (funcall test-juxt-any test-list))))
+
 (ert-deftest-n-times map-on-alist-of-nat-numbers 100
   (-let* ((test-alist (generate-test-alist-of-nat-numbers))
 	  ((actual-car . actual-cdr) (map-on #'-applify-cons #'-sum #'-sum test-alist)))
@@ -94,5 +117,14 @@
   (let ((actual-list (funcall (-compose #'divide-array-values-by-max-array-value #'random-nat-number-list-in-range-255))))
     (should (seq-every-p-between-zero-and-one actual-list))))
 
-(provide 'quickcheck-general-utilities-tests)
-;;; quickcheck-general-utilities-tests.el ends here
+(ert-deftest-n-times const 100
+  (-let (((test-a . test-b) (generate-test-con-of-nat-numbers)))
+    (should (equal (const test-a test-b) test-a))))
+
+(ert-deftest-n-times homogenic-list-p-t 0
+  (-let* (((test-list _) (generate-one-random-list)))
+    (should (homogenic-list-p test-list))))
+
+(ert-deftest-n-times homogenic-list-p-nil 100
+  (let ((test-list (funcall (-compose #'-applify-append #'generate-two-random-distinct-list-types))))
+    (should-not (homogenic-list-p test-list))))
