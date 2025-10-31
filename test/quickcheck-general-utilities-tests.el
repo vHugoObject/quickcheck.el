@@ -128,3 +128,6 @@
 (ert-deftest-n-times homogenic-list-p-nil 100
   (let ((test-list (funcall (-compose #'-applify-append #'generate-two-random-distinct-list-types))))
     (should-not (homogenic-list-p test-list))))
+
+(provide 'quickcheck-general-utilities-tests)
+;;; quickcheck-general-utilities-tests.el ends here

@@ -60,7 +60,6 @@
   (list most-negative-fixnum -1))
 
 (defalias '2+ (apply-partially #'+ 2))
-(defalias 'print (apply-partially #'message "%s"))
 
 (defalias 'not-equal #'/=)
 (defalias 'less-than #'<)
@@ -144,14 +143,6 @@
 
 (defalias '-times-no-args-twice (-partial #'-times-no-args 2))
 
-(defun -juxt-every (&rest fns)
-  (let* ((-juxt-func (funcall #'-applify-juxt fns)))
-    (-compose #'-every-true -juxt-func)))
-
-(defun -juxt-any (&rest fns)
-  (let* ((-juxt-func (funcall #'-applify-juxt fns)))
-    (-compose #'-any-true -juxt-func)))
-
 (cl-defun range-member-exclusive-p ((range-min range-max) number)
   (and (greater-than-or-equal number range-min) (less-than number range-max)))
 
@@ -173,6 +164,7 @@
 
 (defalias 'range-size (-compose #'-applify-subtract #'reverse))
 
+;; calc-scale-float??
 (cl-defun scale-float-to-range ((min max) float-to-scale)
   ;; Float must be between 0 and 1
   (when (greater-than-or-equal min max)
@@ -470,6 +462,8 @@
 (defmacro seq-splice! (op seq)
   `(,op ,@(seq-map #'identity seq)))
 
+(defalias 'seq-subtype (-compose #'cl-type-of #'seq-first))
+
 (defalias 'map-into-alist (-rpartial #'map-into 'alist))
 (defalias 'map-into-plist (-rpartial #'map-into 'plist))  
 (defalias 'map-into-hash-table (-rpartial #'map-into 'hash-table))
@@ -502,21 +496,32 @@
 
 (defalias 'concat-two-string-vector-cons (-compose (-partial #'map-on #'-applify-cons #'-applify-concat #'-applify-vconcat) #'list))
 
-(defmacro plural (macro props)
+(defmacro plural! (macro args)
   `(progn
      ,@(seq-map (lambda (p) `(,macro ,p))
-	       (symbol-value props))))
+	       (symbol-value args))))
 
-(defmacro plural-splice! (macro props)
+(defmacro plural-splice! (macro args)
   `(progn
      ,@(seq-map (lambda (p) `(seq-splice! ,macro ,p))
-	       (symbol-value props))))
+	       (symbol-value args))))
+
+(defmacro create-plural-version-of-function (fname)
+  (cl-with-gensyms (alias-name func)
+    `(let* ((,func (intern ,fname))
+	    (,alias-name (intern (format "%ss" ,fname))))
+       (defalias ,alias-name (-partial #'seq-map ,func)))))
+
+  (defmacro plural-elt (macro elt args)
+    `(progn
+       ,@(seq-map (lambda (p) `(,macro (seq-elt ,p ,elt)))
+		  (symbol-value args))))
 
 (defalias 'last-elt (-compose #'car #'last))
 (defalias 'first-and-last-elt (-juxt #'car #'last-elt))
 (defalias 'head-type-equal-tail-type (-compose #'-applify-equal #'seq-map-cl-type-of #'first-and-last-elt))
-(defalias 'homogenic-list-p (-juxt-every #'proper-list-p #'head-type-equal-tail-type))
-(defalias 'make-list-then-flatten (-compose #'flatten-list #'make-list))
+(defalias 'homogenic-list-p (-andfn #'proper-list-p #'head-type-equal-tail-type))
+(defalias 'make-list-then-append (-compose #'-applify-append #'make-list))
 
 
 
@@ -572,7 +577,7 @@
 	#'generate-test-list-of-strings
 	#'generate-test-list-of-lists-nat-numbers))
 
-(defalias 'generate-test-sum (-compose #'wrap-const #'random))
+(defalias 'generate-test-sum (-compose #'wrap-sum #'random))
 (defalias 'generate-test-product (-compose #'wrap-product #'random))
 (defalias 'generate-test-min (-compose #'wrap-min #'random))
 (defalias 'generate-test-max (-compose #'wrap-max #'random))
@@ -581,6 +586,14 @@
 
 (defconst SINGLE-WRAPPED-INTEGER-GENERATORS
   (vector #'generate-test-sum
+	#'generate-test-product
+	#'generate-test-min
+	#'generate-test-max
+	#'generate-test-first
+	#'generate-test-last))
+
+  (defconst SINGLE-WRAPPED-MONOIDAL-INTEGER-GENERATORS
+    (vector #'generate-test-sum
 	#'generate-test-product
 	#'generate-test-min
 	#'generate-test-max
@@ -605,10 +618,8 @@
 	#'generate-test-list-of-firsts
 	#'generate-test-list-of-lasts))
 
-(defconst WRAPPED-INTEGERS-VECTOR
-  (vector 'sum 'product 'min 'max 'first 'last))
-
-(defalias 'wrapped-integerp (-compose (-partial #'seq-contains-p WRAPPED-INTEGERS-VECTOR) #'car))
+(defconst FLOAT-GENERATORS
+  (vector #'random-float-between-0-and-1 #'random-float))
 
 (defalias 'random-boolean (-partial #'seq-take-one-random-value-from-seq (list 't 'nil)))
 
@@ -703,13 +714,9 @@
   (vconcat ALIST-GENERATORS HASH-TABLE-GENERATORS WRAPPED-PLIST-GENERATORS))
 
 
-(defconst PRIMITIVE-GENERATOR-TYPES    
-  (vector "list" "alist" "hash-table" "vector" "map" "seq"))
-
-
 (defconst TYPE-TO-PRED-MAPPING
   (list
-   (cons "fixnum" #'proper-list-p)
+   (cons "fixnum" #'numberp)
    (cons "string" #'stringp)
    (cons "float" #'floatp)
    (cons "list" #'proper-list-p)
@@ -733,22 +740,21 @@
    (cons "maybe" #'maybep)
    (cons "wrapped-integer" #'wrapped-integerp)
    (cons "wrapped-boolean" #'wrapped-booleanp)
-   (cons "list-of-sums" #'sump)
-   (cons "list-of-products" #'productp)
-   (cons "list-of-mins" #'minp)
-   (cons "list-of-maxes" #'maxp)
-   (cons "list-of-firsts" #'firstp)
-   (cons "list-of-lasts" #'lastp)
-   (cons "list-of-anys" #'anyp)
-   (cons "list-of-alls" #'allp)
-   (cons "list-of-wrapped-booleans" #'wrapped-booleanp)
-   (cons "list-of-wrapped-integers" #'wrapped-integerp)))
+   (cons "list-of-sums" #'seq-every-p-sump)
+   (cons "list-of-products" #'seq-every-p-productp)
+   (cons "list-of-mins" #'seq-every-p-minp)
+   (cons "list-of-maxes" #'seq-every-p-maxp)
+   (cons "list-of-firsts" #'seq-every-p-firstp)
+   (cons "list-of-lasts" #'seq-every-p-lastp)
+   (cons "list-of-anys" #'seq-every-p-anyp)
+   (cons "list-of-alls" #'seq-every-p-allp)
+   (cons "list-of-wrapped-booleans" #'seq-every-p-wrapped-booleanp)
+   (cons "list-of-wrapped-integers" #'seq-every-p-wrapped-integerp)))
 
 
 (defconst TYPE-GENERATOR-MAPPING
   (list
-   (cons "fixnum" (vector #'random))
-   (cons "float" (vector #'random-float-between-0-and-1))
+   (cons "string" (vector #'generate-test-string))
    (cons "list" LIST-GENERATORS)
    (cons "alist" ALIST-GENERATORS)
    (cons "hash-table" HASH-TABLE-GENERATORS)
@@ -766,6 +772,7 @@
    (cons "last" (vector #'generate-test-last))
    (cons "wrapped-boolean" SINGLE-WRAPPED-BOOLEAN-GENERATORS)
    (cons "wrapped-integer" SINGLE-WRAPPED-INTEGER-GENERATORS)
+   (cons "wrapped-monoidal-integer" SINGLE-WRAPPED-MONOIDAL-INTEGER-GENERATORS)
    (cons "list-of-anys" (vector #'generate-n-random-anys))
    (cons "list-of-alls" (vector #'generate-n-random-alls))
    (cons "list-of-wrapped-booleans" LIST-OF-WRAPPED-BOOLEAN-GENERATORS)
@@ -778,10 +785,11 @@
    (cons "list-of-wrapped-integers" LIST-OF-WRAPPED-INTEGER-GENERATORS)))
   
 (defalias 'get-random-generator-type (-partial (-compose #'seq-take-one-random-value-from-seq #'map-keys) TYPE-GENERATOR-MAPPING))
-(defalias 'get-generators-of-type-x (-rpartial #'assoc-cdr TYPE-GENERATOR-MAPPING))
-(defalias 'get-predicate-for-type (-rpartial #'assoc-cdr TYPE-TO-PRED-MAPPING))
+(defalias 'get-generators-of-type-x (-partial #'map-elt TYPE-GENERATOR-MAPPING))
+(defalias 'get-predicate-for-type (-partial #'map-elt TYPE-TO-PRED-MAPPING))
 (defalias 'get-random-generator (-compose #'seq-take-one-random-value-from-seq (-partial #'map-one-random-value TYPE-GENERATOR-MAPPING)))
-(defalias 'generate-random-value (-compose #'funcall #'get-random-type-generator))
+(defalias 'generate-random-value (-compose #'funcall #'get-random-generator))
+(defalias 'get-wrapped-integer-type-pred (-compose #'get-predicate-for-type #'symbol-name #'car))
 
 (defun generate-one-random-x (type generators-list)
   (let ((pred (get-predicate-for-type type)))
@@ -806,40 +814,45 @@
     `(let ((,alias-name (intern (format "generate-one-random-%s-type-n-times" ,type))))
        (defalias ,alias-name (-partial #'generate-one-random-x-type-n-times ,type ,generators-list)))))
 
+(cl-defmacro create-generate-one-random-x-type-twice ((type . generators-list))
+  (cl-with-gensyms (alias-name)      
+    `(let ((,alias-name (intern (format "generate-one-random-%s-type-twice" ,type))))
+       (defalias ,alias-name (-partial #'generate-one-random-x-type-n-times ,type ,generators-list 2)))))
+
 (cl-defmacro create-generate-one-random-x-type-n-random-times ((type . generators-list))
   (cl-with-gensyms (alias-name)      
     `(let ((,alias-name (intern (format "generate-one-random-%s-type-n-random-times" ,type))))
        (defalias ,alias-name (-partial #'generate-one-random-x-type-n-random-times ,type ,generators-list)))))
 
+
 (defmacro create-list-of-generate-one-random-x (args)    
-  `(plural create-generate-one-random-x ,args))
+  `(plural! create-generate-one-random-x ,args))
 
 (defmacro create-list-of-generate-one-random-x-type-n-times (args)    
-  `(plural create-generate-one-random-x-type-n-times ,args))
+  `(plural! create-generate-one-random-x-type-n-times ,args))
+
+(defmacro create-list-of-generate-one-random-x-type-twice (args)    
+  `(plural! create-generate-one-random-x-type-twice ,args))
 
 (defmacro create-list-of-generate-one-random-x-type-n-random-times (args)    
-  `(plural create-generate-one-random-x-type-n-random-times ,args))
+  `(plural! create-generate-one-random-x-type-n-random-times ,args))
 
 (create-list-of-generate-one-random-x TYPE-GENERATOR-MAPPING)
 (create-list-of-generate-one-random-x-type-n-times TYPE-GENERATOR-MAPPING)
+(create-list-of-generate-one-random-x-type-twice TYPE-GENERATOR-MAPPING)
 (create-list-of-generate-one-random-x-type-n-random-times TYPE-GENERATOR-MAPPING)
 
-(defalias 'generate-one-random-hash-table-generator-twice (-partial #'generate-one-random-hash-table-type-n-times 2))
-(defalias 'generate-one-random-alist-generator-twice (-partial #'generate-one-random-alist-type-n-times 2))
-(defalias 'generate-one-random-wrapped-plist-generator-twice (-partial #'generate-one-random-wrapped-plist-type-n-times 2))  
-(defalias 'generate-one-random-map-type-twice (-partial #'generate-one-random-map-type-n-times 2))
-(defalias 'generate-one-random-wrapped-boolean-type-twice (-partial #'generate-one-random-wrapped-boolean-type-n-times 2))
-
+;; add wrapped-integers, booleans, seqs and maps later
 (defconst WRAPPED-TYPES-MAPPING
   (list (cons "const" #'wrap-const)
 	(cons "maybe" #'wrap-maybe)))
 
-(defalias 'get-wrapper-for-wrapped-type (-rpartial #'assoc-cdr WRAPPED-TYPES-MAPPING))
+(defalias 'get-wrapper-for-wrapped-type (-partial #'map-elt WRAPPED-TYPES-MAPPING))
 
 (defun generate-one-random-wrapped-x-type (type)
   (-let* (((wrapper-pred wrapper) (funcall (-juxt #'get-predicate-for-type #'get-wrapper-for-wrapped-type) type))
 	  ((generators-list wrapped-type-pred) (funcall (-compose (-juxt #'get-generators-of-type-x #'get-predicate-for-type) #'get-random-generator-type)))
-	  ((wrapped-val original-value) (funcall (-compose (-juxt #'wrapper #'identity) #'call-random-function) generators-list)))
+	  ((wrapped-val original-value) (funcall (-compose (-juxt wrapper #'identity) #'call-random-function) generators-list)))
     (list wrapped-val wrapper-pred wrapped-type-pred original-value)))
 
 (defun generate-one-random-wrapped-x-type-n-times (type calls)
@@ -874,97 +887,144 @@
 
 (defalias 'const (lambda (a b) a))
 
-(defalias 'wrapped-booleanp (-juxt-any #'anyp #'allp))
+(defalias 'wrapped-booleanp (-orfn #'anyp #'allp))
+(defalias 'seq-every-p-wrapped-booleanp (-partial #'seq-every-p #'wrapped-booleanp))
+
+(defalias 'wrapped-integerp (-orfn #'sump #'productp #'minp #'maxp #'lastp #'firstp))
+(defalias 'seq-every-p-wrapped-integerp (-partial #'seq-every-p #'wrapped-integerp))
 
 (defalias 'nilp (-not #'identity))
 
 (defalias 'nothingp (-compose (-partial #'equal 'nothing) #'car))
 
-(defalias 'can-be-maybe (-juxt-any #'justp #'nothingp))
+(defalias 'can-be-maybe (-orfn #'justp #'nothingp))
 
-;; needs to use plural-splice! here
-(defmacro new-type (args)
-  (-let* (([type con-name decon-name predicate] args))
-    `(defmacro ,con-name (value)
-       (defun ,decon-name (wrapped-val)
-	   (cadr wrapped-val))
-       `(if (funcall ,',predicate ,value)
-	    (list ,',type ,value)
-	  (error (format "%s can not be converted into a %s" (type-of ,value) (symbol-name ,',type)))))))
+(defmacro create-new-type-lambda-wrapper (wrapper-name con-name)
+  (cl-with-gensyms (alias-name constructor arg)
+    `(let ((,alias-name (intern ,wrapper-name))
+	   (,constructor (intern ,con-name)))
+       (defalias ,alias-name (lambda (,arg) (,constructor ,arg))))))
 
-(defmacro create-new-type-lambda-wrapper (props)
-  (-let (([wrapper-name con-name] props))
-    `(defalias ,wrapper-name (lambda (x) (,con-name x)))))
+(defmacro create-new-type-predicate (type predicate-name)
+  (cl-with-gensyms (type-name alias-name arg)
+    `(let ((,alias-name (intern ,predicate-name))
+	   (,type-name (intern ,type)))
+      (defalias ,alias-name (lambda (,arg) (and (consp ,arg) (equal (car ,arg) ,type-name) (length= ,arg 2)))))))      
 
-(defmacro create-new-type-predicate (props)
-  (-let (([type predicate-name] props))
-    `(defalias ,predicate-name (lambda (x) (and (equal (car x) ,type) (length= x 2))))))
+(defmacro create-seq-of-new-type-predicate (_ predicate-name)
+  (cl-with-gensyms (predicate alias-name)
+    `(let ((,predicate (intern ,predicate-name))
+	   (,alias-name (intern (format "seq-every-p-%s" ,predicate-name))))
+      (defalias ,alias-name (-partial #'seq-every-p ,predicate)))))
 
+(defmacro create-single-arg-cl-defmethod-for-new-type (name special-arg method-body)
+  (cl-with-gensyms (method-name special type decon op wrapper)
+    `(let ((,method-name (intern ,name))
+	   (,special (intern ,special-arg))
+	   (,type (aref ,method-body 0))
+	   (,decon (aref ,method-body 1))
+	   (,op (aref ,method-body 2))
+	   (,wrapper (aref ,method-body 3)))
+       (cl-defmethod ,method-name ((,special (head ,type)))
+	 (funcall (-compose ,wrapper ,op ,decon) ,special)))))
 
-(defmacro create-new-types (props)
-  `(plural new-type ,props))
+(defmacro create-list-of-new-types (args)
+  `(plural-splice! new-type ,args))
 
-(defmacro create-new-type-lambda-wrappers (props)
-  `(plural create-new-type-lambda-wrapper ,props))
+(defmacro create-list-of-new-type-lambda-wrappers (args)
+  `(plural-splice! create-new-type-lambda-wrapper ,args))
 
-(defmacro create-new-type-predicates (props)
-  `(plural create-new-type-predicate ,props))
+(defmacro create-list-of-new-type-predicates (args)
+  `(plural-splice! create-new-type-predicate ,args))
+
+(defmacro create-list-of-seq-of-new-type-predicates (args)
+  `(plural-splice! create-seq-of-new-type-predicate ,args))
+
+(defmacro create-list-of-single-arg-cl-defmethods-for-new-types (name special-arg method-bodies)
+  `(progn
+     ,@(seq-map (lambda (p) `(create-single-arg-cl-defmethod-for-new-type ,name ,special-arg ,p))
+	       (symbol-value method-bodies))))
+
+(defmacro create-list-of-plural-versions-of-new-type-decons (args)
+  `(plural-elt create-plural-version-of-function 2 ,args))
 
 (defconst DEFAULT-NEW-TYPE-ARGUMENTS
+  (list ["sum" "Sum" "get-sum" #'integerp]
+	["product" "Product" "get-product" #'integerp]
+	["min" "Min" "get-min" #'integerp]
+	["max" "Max" "get-max" #'integerp]
+	["const" "Const" "get-const" #'identity]
+	["first" "First" "get-first" #'integerp]
+	["last" "Last" "get-last" #'integerp]
+	["any" "Any" "get-any" #'booleanp]
+	["all" "All" "get-all" #'booleanp]
+	["plist" "Plist" "get-plist" #'plistp]
+	["just" "Just" "get-just" #'identity]
+	["maybe" "Maybe" "get-maybe" #'can-be-maybe]))
+
+
+  (defconst DEFAULT-NEW-TYPE-LAMBDA-WRAPPER-ARGS
     (list
-     ['sum Sum get-sum #'integerp]
-     ['product Product get-product #'integerp]
-     ['min Min get-min #'integerp]
-     ['max Max get-max #'integerp]
-     ['const Const get-const #'identity]
-     ['first First get-first #'integerp]
-     ['last Last get-last #'integerp]
-     ['any Any get-any #'booleanp]
-     ['all All get-all #'booleanp]
-     ['plist Plist get-plist #'plistp]
-     ['just Just get-just #'identity]
-     ['maybe Maybe get-maybe #'can-be-maybe]))
+     ["wrap-sum" "Sum"]
+     ["wrap-product" "Product"]
+     ["wrap-min" "Min"]
+     ["wrap-max" "Max"]
+     ["wrap-const" "Const"]
+     ["wrap-first" "First"]
+     ["wrap-last" "Last"]
+     ["wrap-any" "Any"]
+     ["wrap-all" "All"]
+     ["wrap-plist" "Plist"]
+     ["wrap-just" "Just"]
+     ["create-maybe" "Maybe"]))
 
-(defconst DEFAULT-NEW-TYPE-LAMBDA-WRAPPER-ARGS
-  (list
-   ['wrap-sum Sum]
-   ['wrap-product Product]
-   ['wrap-min Min]
-   ['wrap-max Max]
-   ['wrap-const Const]
-   ['wrap-first First]
-   ['wrap-last Last]
-   ['wrap-any Any]
-   ['wrap-all All]
-   ['wrap-plist Plist]
-   ['wrap-just Just]
-   ['create-maybe Maybe]))
+  (defconst DEFAULT-NEW-TYPE-PREDICATES
+    (list     
+     ["sum" "sump"]
+     ["product" "productp"]
+     ["min" "minp"]
+     ["max" "maxp"]
+     ["const" "constp"]
+     ["first" "firstp"]
+     ["last" "lastp"]
+     ["any" "anyp"]
+     ["all" "allp"]
+     ["plist" "wrapped-plistp"]
+     ["just" "justp"]
+     ["maybe" "maybep"]))
+   
+  (defconst ALLNEWTYPES
+    (seq-map #'seq-first DEFAULT-NEW-TYPE-ARGUMENTS))
 
-(defconst DEFAULT-NEW-TYPE-PREDICATES
-  (list
-   ['sum 'sump]
-   ['product 'productp]
-   ['min 'minp]
-   ['max 'maxp]
-   ['const 'constp]
-   ['first 'firstp]
-   ['last 'lastp]
-   ['any 'anyp]
-   ['all 'allp]
-   ['plist 'wrapped-plistp]
-   ['just 'justp]
-   ['maybe 'maybep]))
+  (defalias 'is-new-type-symbol (-rpartial #'member ALLNEWTYPES))
+  (create-list-of-new-types DEFAULT-NEW-TYPE-ARGUMENTS)
+  (create-list-of-new-type-lambda-wrappers DEFAULT-NEW-TYPE-LAMBDA-WRAPPER-ARGS)
+  (create-list-of-new-type-predicates DEFAULT-NEW-TYPE-PREDICATES)  
+  (create-list-of-seq-of-new-type-predicates DEFAULT-NEW-TYPE-PREDICATES)
+  (create-list-of-plural-versions-of-new-type-decons DEFAULT-NEW-TYPE-ARGUMENTS)
 
+(defmacro create-new-type-constructor (con-name type-name predicate)
+  (cl-with-gensyms (constructor type-symbol defun-arg)
+    `(let ((,constructor (intern ,con-name))
+	   (,type-symbol (intern ,type-name)))
+       `(defun ,',constructor (,',defun-arg)
+	  (if (funcall ,',predicate ,',defun-arg)
+	      (list ,',type-symbol ,',defun-arg)
+	    (error "%s can not be converted into a %s" ,',defun-arg ,',type-name))))))
 
-(defconst ALLNEWTYPES
-  (seq-map #'seq-first DEFAULT-NEW-TYPE-ARGUMENTS))
+(defmacro create-new-type-deconstructor (decon-name type-name)
+  (cl-with-gensyms (deconstructor type-symbol defun-arg)
+    `(let ((,deconstructor (intern ,decon-name))
+	   (,type-symbol (intern ,type-name)))
+       `(defun ,',deconstructor (,',defun-arg)
+	  (if (equal (car defun-arg) ,',type-symbol)
+	      (cadr ,',defun-arg)
+	    (error "%s can not be used to deconstruct %s" ,',deconstructor ,',defun-arg))))))
+  
 
-
-(defalias 'is-new-type-symbol (-rpartial #'member ALLNEWTYPES))
-
-(create-new-types DEFAULT-NEW-TYPE-ARGUMENTS)
-(create-new-type-lambda-wrappers DEFAULT-NEW-TYPE-LAMBDA-WRAPPER-ARGS)
-(create-new-type-predicates DEFAULT-NEW-TYPE-PREDICATES)
+(defmacro new-type (type-name con-name decon-name predicate)
+  (progn
+    `(create-new-type-constructor ,con-name ,con-name #'integerp)))
 
 (defalias 'create-nothing (lambda () (list 'nothing)))
 
@@ -1006,9 +1066,16 @@
     (`(nothing) '())
     (`(just ,x) (list x))))
 
+;; foldr (const . Just) Nothing
+;; const a -> b -> a
+;; (a -> b -> b) -> b -> [a] -> b
+;; currentValue:: a
+;; previousValue: b
+;; (--reduce-r-from (funcall fn it acc) init list))
+;;; something wrong here
 (defun list-to-maybe (list)
   (let ((initial-val (create-maybe-nothing)))
-    (-reduce-r-from (-compose #'const #'wrap-maybe) initial-val list)))
+    (-reduce-r-from (-compose #'wrap-maybe #'const) initial-val list)))
 
 (defun map-maybes (func list)
   (funcall (-compose (-partial #'mapcar (-compose func #'unwrap-maybe-just)) (-partial #'seq-filter #'is-just)) list))
@@ -1042,32 +1109,30 @@
 
 (defmacro semigroup-concat-for-wrapped-type (type decon op wrapper)
   `(cl-defmethod semigroup-concat ((a (head ,type)) b)
-     (funcall (-compose ,wrapper ,op (-partial #'mapcar ,decon) #'list) a b)))
+     (funcall (-compose ,wrapper ,op ,decon #'list) a b)))    
 
 (defmacro semigroup-concat-for-list-of-wrapped-types (args)
     `(plural-splice! semigroup-concat-for-wrapped-type ,args))
 
 
+;; sum needs to be a string, later
 (defconst DEFAULT-SEMIGROUP-CONCAT-WRAPPED-TYPES
   (list
-   [sum #'get-sum #'-sum #'wrap-sum]
-   [max #'get-max #'-max #'wrap-max]
-   [min #'get-min #'-min #'wrap-min]
-   [product #'get-product #'-applify-multiply #'wrap-product]
-   [first #'get-first #'car #'wrap-first]
-   [last #'get-last #'cadr #'wrap-last]
-   [any #'get-any #'-any-true #'wrap-any]
-   [all #'get-all #'-every-true #'wrap-all]
-   [const #'get-const (-applify #'semigroup-concat) #'wrap-const]))
+   [sum #'get-sums #'-sum #'wrap-sum]
+   [max #'get-maxs #'-max #'wrap-max]
+   [min #'get-mins #'-min #'wrap-min]
+   [product #'get-products #'-applify-multiply #'wrap-product]
+   [first #'get-firsts #'car #'wrap-first]
+   [last #'get-lasts #'cadr #'wrap-last]
+   [any #'get-anys #'-any-true #'wrap-any]
+   [all #'get-alls #'-every-true #'wrap-all]
+   [const #'get-consts (-applify #'semigroup-concat) #'wrap-const]))
 
 
 (semigroup-concat-for-list-of-wrapped-types DEFAULT-SEMIGROUP-CONCAT-WRAPPED-TYPES)
 
 (cl-defmethod semigroup-concat ((a (head plist)) b)
-
   (funcall (-compose #'wrap-plist (-applify (-partial #'map-merge 'plist)) (-partial #'mapcar #'get-plist) #'list) a b))
-
-(semigroup-concat (list 'plist (list 1 2 3)) (list 'plist (list 4 5 6)))
 
 (cl-defmethod semigroup-concat ((a (head maybe)) b)
   (pcase-exhaustive (mapcar #'get-maybe (list a b))
@@ -1088,7 +1153,7 @@
     (error "stimes: positive multiplier expected"))
   (pcase-exhaustive a
    ((pred alistp) (stimes-idempotent n a))
-   ((and (pred homogenic-list-p) (guard (plusp n))) (make-list-then-flatten n a))
+   ((and (pred homogenic-list-p) (guard (plusp n))) (make-list-then-append n a))
    ((and (pred homogenic-list-p) (guard (zerop n))) [])
    (_ (cl-call-next-method n a))))
 
@@ -1114,7 +1179,7 @@
      (funcall (-compose ,wrapper (-partial ,op n) ,decon) a)))
 
 (defmacro stimes-for-list-of-wrapped-types (args)
-    `(plural-splice! stimes-for-wrapped-type ,args))
+  `(plural-splice! stimes-for-wrapped-type ,args))
 
 
 (defconst DEFAULT-STIMES-WRAPPED-TYPES-ARGS
@@ -1140,9 +1205,46 @@
     ((and `(just ,x) (guard (zerop n))) (create-maybe-nothing))      
     ((and `(just ,x) (guard (plusp n))) (funcall (-compose #'wrap-maybe #'stimes) n x))))
 
-(cl-defgeneric mempty ())
+(cl-defgeneric mempty (a))
 
-(cl-defmethod mempty ())
+(cl-defmethod mempty ((a cons))    
+  (pcase-exhaustive a
+    ((pred alistp) '())
+    ((pred homogenic-list-p) '())
+    (_ (cl-call-next-method n a))))
+
+(cl-defmethod mempty ((a string))
+  "")
+
+(cl-defmethod mempty ((a vector))
+  [])
+
+(cl-defmethod mempty ((a hash-table))
+  (make-hash-table :size 0))
+
+(defconst MEMPTY-WRAPPED-TYPES-ARGS
+  (list
+   [sum #'identity (cl-constantly 0) #'wrap-sum]
+   [max #'identity (cl-constantly most-negative-fixnum)  #'wrap-max]
+   [min #'identity (cl-constantly most-postive-fixnum) #'wrap-min]
+   [product #'identity (cl-constantly 1) #'wrap-product]
+   [any #'identity (cl-constantly 'nil) #'wrap-any]
+   [all #'identity (cl-constantly 't) #'-every-true #'wrap-all]
+   [const #'identity #'mempty #'wrap-const]))
+
+;;(create-list-of-single-arg-cl-defmethods-for-new-types "mempty" "a" MEMPTY-WRAPPED-TYPES-ARGS)
+
+(cl-defgeneric mconcat (a))
+
+(cl-defmethod mconcat ((a cons))
+  (pcase-exhaustive a
+    ((pred homogenic-list-p) (cl-call-next-method a))))
+
+(cl-defmethod mconcat ((a list))
+  (let ((initial (mempty a)))
+    (-reduce-r-from #'semigroup-concat initial a)))
+
+
 
 
 
